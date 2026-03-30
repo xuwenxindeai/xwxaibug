@@ -228,8 +228,6 @@ function loadCurrentProject() {
         const current = res.data;
         if (current && current.children.length > 0) {
           const paths = current.children.map(c => {
-            const pathDisplay = c.path.length > 60 ? '...' + c.path.substring(c.path.length - 60) : c.path;
-            return `<div class="small"><i class="bi bi-${c.type === 'ios' ? 'apple' : c.type === 'nodejs' ? 'file-code' : 'braces'}"></i> ${escapeHtml(c.name)}: ${escapeHtml(pathDisplay)} | <strong class="text-primary">${escapeHtml(c.branch || 'master')}</strong></div>`;
           }).join('');
           $('#projectPathDisplay').html(paths);
         }
@@ -418,6 +416,15 @@ function loadStats() {
 
 function showLoading(text) { $('#loadingText').text(text); $('#loadingOverlay').css('display', 'flex'); }
 function hideLoading() { $('#loadingOverlay').hide(); }
+// 格式化路径显示（转换为~/workspace/格式）
+function formatPath(fullPath) {
+  const workspaceBase = "/Users/xwxgs/Desktop/AIBug/workspace/";
+  if (fullPath.startsWith(workspaceBase)) {
+    return "~/workspace/" + fullPath.substring(workspaceBase.length);
+  }
+  return fullPath;
+}
+
 function escapeHtml(text) { if (!text) return ''; return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
 function logout() {
@@ -702,7 +709,7 @@ function showProjectConfig() {
         <strong class="text-primary ms-1" id="git-branch-${p.id}"><i class="bi bi-hourglass-split"></i> 获取中...</strong>
       </div>
       <div id="commits-config-${p.id}" class="mt-2"></div>
-      <div class="mt-1 small text-muted"><i class="bi bi-folder2-open"></i> ${escapeHtml(p.path)}</div>
+      <div class="mt-1 small text-muted"><i class="bi bi-folder2-open"></i> ${escapeHtml(formatPath(p.path))}</div>
     </div>`;
   });
   $('#projectConfigBody').html(html);

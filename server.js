@@ -73,15 +73,32 @@ if (!fs.existsSync(logsDir)) {
 
 // ==================== API 路由 ====================
 
-// 获取所有 Bug（支持按项目过滤）
+// 获取所有 Bug（支持按父项目过滤）
 app.get('/api/bugs', auth.requireAuth, (req, res) => {
   try {
-    const { project_id } = req.query;
+    const { group_id } = req.query;
     let query;
     
-    if (project_id) {
-      query = db.db.prepare('SELECT * FROM bugs WHERE project_id = ? ORDER BY created_at DESC');
-      query = query.all(project_id);
+    if (group_id) {
+      // 获取该父项目下的所有子项目 ID
+      const projects = db.db.prepare('SELECT * FROM projects WHERE enabled = 1 ORDER BY id').all();
+      const grouped = {};
+      projects.forEach(p => {
+        const groupName = p.display_name || p.name;
+        if (!grouped[groupName]) grouped[groupName] = [];
+        grouped[groupName].push(p.id);
+      });
+      
+      const groupNames = Object.keys(grouped);
+      const selectedGroup = groupNames[group_id - 1];
+      const childIds = grouped[selectedGroup] || [];
+      
+      if (childIds.length > 0) {
+        const placeholders = childIds.map(() => '?').join(',');
+        query = db.db.prepare(`SELECT * FROM bugs WHERE project_id IN (${placeholders}) ORDER BY created_at DESC`).all(...childIds);
+      } else {
+        query = [];
+      }
     } else {
       query = db.db.prepare('SELECT * FROM bugs ORDER BY created_at DESC').all();
     }
@@ -357,17 +374,13 @@ app.get('/api/current-project', auth.requireAuth, (req, res) => {
       return res.json({ success: true, data: null, all: [] });
     }
     
-    // 从 Cookie 获取选中的项目 ID，或默认第一个
-    const selectedId = req.cookies?.selectedProjectId ? parseInt(req.cookies.selectedProjectId) : projects[0].id;
-    const selected = projects.find(p => p.id === selectedId) || projects[0];
-    
     // 按 display_name 分组
     const grouped = {};
     projects.forEach(p => {
       const groupName = p.display_name || p.name;
       if (!grouped[groupName]) {
         grouped[groupName] = {
-          id: p.id,
+          id: Object.keys(grouped).length + 1, // 生成父项目 ID
           display_name: groupName,
           children: []
         };
@@ -378,11 +391,15 @@ app.get('/api/current-project', auth.requireAuth, (req, res) => {
         type: p.type,
         path: p.path,
         branch: p.branch,
-        display_name: groupName  // 子项目也带上 display_name
+        display_name: groupName
       });
     });
     
     const all = Object.values(grouped);
+    
+    // 从 Cookie 获取选中的父项目 ID，或默认第一个
+    const selectedGroupId = req.cookies?.selectedGroupId ? parseInt(req.cookies.selectedGroupId) : 1;
+    const selected = all.find(g => g.id === selectedGroupId) || all[0];
     
     res.json({ success: true, data: selected, all });
   } catch (error) {
@@ -390,19 +407,32 @@ app.get('/api/current-project', auth.requireAuth, (req, res) => {
   }
 });
 
-// 切换当前项目
+// 切换当前项目（父项目）
 app.post('/api/current-project', auth.requireAuth, (req, res) => {
   try {
-    const { projectId } = req.body;
-    const project = db.db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+    const { groupId } = req.body; // 父项目 ID
+    const projects = db.db.prepare('SELECT * FROM projects WHERE enabled = 1 ORDER BY id').all();
     
-    if (!project) {
-      return res.status(404).json({ success: false, error: '项目不存在' });
-    }
+    // 按 display_name 分组
+    const grouped = {};
+    projects.forEach(p => {
+      const groupName = p.display_name || p.name;
+      if (!grouped[groupName]) {
+        grouped[groupName] = {
+          id: Object.keys(grouped).length + 1,
+          display_name: groupName,
+          children: []
+        };
+      }
+      grouped[groupName].children.push({ id: p.id, name: p.name, type: p.type, path: p.path, branch: p.branch });
+    });
+    
+    const all = Object.values(grouped);
+    const selected = all.find(g => g.id === parseInt(groupId)) || all[0];
     
     // 设置 Cookie（有效期 30 天）
-    res.cookie('selectedProjectId', projectId, { maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: true });
-    res.json({ success: true, data: project });
+    res.cookie('selectedGroupId', groupId, { maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: true });
+    res.json({ success: true, data: selected });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -418,19 +448,41 @@ app.get('/api/projects', auth.requireAuth, (req, res) => {
   }
 });
 
-// 获取统计信息（支持按项目过滤）
+// 获取统计信息（支持按父项目过滤）
 app.get('/api/stats', auth.requireAuth, (req, res) => {
   try {
-    const { project_id } = req.query;
-    const where = project_id ? `WHERE project_id = ${project_id}` : '';
+    const { group_id } = req.query;
+    let where = '';
+    let params = [];
+    
+    if (group_id) {
+      // 获取该父项目下的所有子项目 ID
+      const projects = db.db.prepare('SELECT * FROM projects WHERE enabled = 1 ORDER BY id').all();
+      const grouped = {};
+      projects.forEach(p => {
+        const groupName = p.display_name || p.name;
+        if (!grouped[groupName]) grouped[groupName] = [];
+        grouped[groupName].push(p.id);
+      });
+      
+      const groupNames = Object.keys(grouped);
+      const selectedGroup = groupNames[group_id - 1];
+      const childIds = grouped[selectedGroup] || [];
+      
+      if (childIds.length > 0) {
+        const placeholders = childIds.map(() => '?').join(',');
+        where = `WHERE project_id IN (${placeholders})`;
+        params = childIds;
+      }
+    }
     
     const stats = {
-      total: db.db.prepare(`SELECT COUNT(*) as count FROM bugs ${where}`).get().count,
-      pending: db.db.prepare(`SELECT COUNT(*) as count FROM bugs ${where ? where + ' AND' : 'WHERE'} status = 'pending'`).get().count,
-      analyzing: db.db.prepare(`SELECT COUNT(*) as count FROM bugs ${where ? where + ' AND' : 'WHERE'} status = 'analyzing'`).get().count,
-      ready_to_fix: db.db.prepare(`SELECT COUNT(*) as count FROM bugs ${where ? where + ' AND' : 'WHERE'} status = 'ready_to_fix'`).get().count,
-      fixed: db.db.prepare(`SELECT COUNT(*) as count FROM bugs ${where ? where + ' AND' : 'WHERE'} status = 'fixed'`).get().count,
-      error: db.db.prepare(`SELECT COUNT(*) as count FROM bugs ${where ? where + ' AND' : 'WHERE'} status = 'error'`).get().count
+      total: db.db.prepare(`SELECT COUNT(*) as count FROM bugs ${where}`).get(...params).count,
+      pending: db.db.prepare(`SELECT COUNT(*) as count FROM bugs ${where ? where + ' AND' : 'WHERE'} status = 'pending'`).get(...params).count,
+      analyzing: db.db.prepare(`SELECT COUNT(*) as count FROM bugs ${where ? where + ' AND' : 'WHERE'} status = 'analyzing'`).get(...params).count,
+      ready_to_fix: db.db.prepare(`SELECT COUNT(*) as count FROM bugs ${where ? where + ' AND' : 'WHERE'} status = 'ready_to_fix'`).get(...params).count,
+      fixed: db.db.prepare(`SELECT COUNT(*) as count FROM bugs ${where ? where + ' AND' : 'WHERE'} status = 'fixed'`).get(...params).count,
+      error: db.db.prepare(`SELECT COUNT(*) as count FROM bugs ${where ? where + ' AND' : 'WHERE'} status = 'error'`).get(...params).count
     };
     
     res.json({ success: true, data: stats });

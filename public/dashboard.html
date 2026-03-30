@@ -204,32 +204,24 @@ function loadCurrentProject() {
     headers: { 'Authorization': 'Bearer ' + currentToken },
     success: function(res) {
       if (res.success) {
-        currentProjectId = res.data?.id || null;
-        projectsCache = res.all.flatMap(g => g.children.map(c => ({...c, display_name: g.display_name})));
+        currentProjectId = res.data?.id || 1; // 父项目 ID
+        projectsCache = res.all.flatMap(g => g.children.map(c => ({...c, group_id: g.id, group_name: g.display_name})));
         
-        // 填充项目选择器（分组显示）
+        // 填充项目选择器（只显示父项目）
         $('#currentProjectSelect').html('');
-        res.all.forEach(group => {
-          // 添加分组标题
-          if (group.children.length > 1) {
-            $('#currentProjectSelect').append(`<optgroup label="${escapeHtml(group.display_name)}"></optgroup>`);
-          } else {
-            $('#currentProjectSelect').append(`<option value="${group.children[0].id}" ${group.children[0].id === currentProjectId ? 'selected' : ''}>${escapeHtml(group.display_name)}</option>`);
-          }
-          
-          // 添加子项目
-          if (group.children.length > 1) {
-            group.children.forEach(c => {
-              $('#currentProjectSelect').append(`<option value="${c.id}" ${c.id === currentProjectId ? 'selected' : ''}>  ${escapeHtml(c.name)} (${c.type})</option>`);
-            });
-          }
+        res.all.forEach(g => {
+          const childNames = g.children.map(c => c.name).join(' + ');
+          $('#currentProjectSelect').append(`<option value="${g.id}" ${g.id === currentProjectId ? 'selected' : ''}>${escapeHtml(g.display_name)} (${g.children.length}个子项目)</option>`);
         });
         
-        // 显示路径
-        const current = res.data || (res.all.length > 0 ? res.all[0].children[0] : null);
-        if (current) {
-          const pathDisplay = current.path.length > 80 ? '...' + current.path.substring(current.path.length - 80) : current.path;
-          $('#projectPathDisplay').html(`<i class="bi bi-folder2-open"></i> ${escapeHtml(pathDisplay)} | <i class="bi bi-git"></i> 分支：<strong class="text-primary">${escapeHtml(current.branch || 'master')}</strong>`);
+        // 显示路径（显示所有子项目路径）
+        const current = res.data;
+        if (current && current.children.length > 0) {
+          const paths = current.children.map(c => {
+            const pathDisplay = c.path.length > 60 ? '...' + c.path.substring(c.path.length - 60) : c.path;
+            return `<div class="small"><i class="bi bi-${c.type === 'ios' ? 'apple' : c.type === 'nodejs' ? 'file-code' : 'braces'}"></i> ${escapeHtml(c.name)}: ${escapeHtml(pathDisplay)} | <strong class="text-primary">${escapeHtml(c.branch || 'master')}</strong></div>`;
+          }).join('');
+          $('#projectPathDisplay').html(paths);
         }
         
         renderProjectStatus();
@@ -238,19 +230,19 @@ function loadCurrentProject() {
   });
 }
 
-function switchProject(projectId) {
-  if (!projectId || projectId === currentProjectId) return;
+function switchProject(groupId) {
+  if (!groupId || groupId === currentProjectId) return;
   showLoading('切换项目...');
   $.ajax({
     url: '/api/current-project',
     method: 'POST',
     contentType: 'application/json',
     headers: { 'Authorization': 'Bearer ' + currentToken },
-    data: JSON.stringify({ projectId }),
+    data: JSON.stringify({ groupId }),
     success: function(res) {
       hideLoading();
       if (res.success) {
-        currentProjectId = parseInt(projectId);
+        currentProjectId = parseInt(groupId);
         loadCurrentProject();
         loadBugs();
         loadStats();
@@ -302,7 +294,7 @@ function renderProjectStatus() {
 
 function loadBugs() {
   $.ajax({
-    url: currentProjectId ? '/api/bugs?project_id=' + currentProjectId : '/api/bugs',
+    url: currentProjectId ? '/api/bugs?group_id=' + currentProjectId : '/api/bugs',
     headers: { 'Authorization': 'Bearer ' + currentToken },
     success: function(res) { if (res.success) renderBugTable(res.data); }
   });
@@ -345,7 +337,7 @@ function getProjectName(projectId) {
 
 function loadStats() {
   $.ajax({
-    url: currentProjectId ? '/api/stats?project_id=' + currentProjectId : '/api/stats',
+    url: currentProjectId ? '/api/stats?group_id=' + currentProjectId : '/api/stats',
     headers: { 'Authorization': 'Bearer ' + currentToken },
     success: function(res) {
       if (res.success) {

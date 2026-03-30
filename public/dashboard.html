@@ -9,9 +9,12 @@
   <style>
     body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; padding-bottom: 60px; }
     .main-container { max-width: 1400px; margin: 0 auto; }
-    .footer { text-align: center; padding: 20px; color: rgba(255,255,255,0.8); font-size: 0.85rem; margin-top: 40px; border-top: 1px solid rgba(255,255,255,0.1); }
-    .footer a { color: white; text-decoration: none; }
-    .footer a:hover { text-decoration: underline; }
+    .footer { text-align: center; padding: 20px; color: white; font-size: 0.85rem; margin-top: 40px; border-top: 1px solid rgba(255,255,255,0.2); }
+    .footer-content { display: flex; justify-content: center; align-items: center; gap: 20px; flex-wrap: wrap; }
+    .footer-item { color: white; }
+    .footer-item a { color: white; text-decoration: none; }
+    .footer-item a:hover { text-decoration: underline; }
+    .footer-divider { color: rgba(255,255,255,0.5); }
     .card { border: none; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); margin-bottom: 20px; }
     .card-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px 15px 0 0 !important; padding: 20px; font-weight: 600; }
     .stat-card { text-align: center; padding: 25px; transition: transform 0.3s; }
@@ -957,9 +960,13 @@ function updateBranch(projectId) {
 
   <!-- 底部版权信息 -->
   <div class="footer">
-    <div>作者：文鑫</div>
-    <div>技术支持：<a href="mailto:407755824@qq.com">407755824@qq.com</a></div>
-    <div class="mt-2 text-muted" style="font-size: 0.75rem;">AIBug 自动修复平台 v1.0</div>
+    <div class="footer-content">
+      <span class="footer-item">作者：文鑫</span>
+      <span class="footer-divider">|</span>
+      <span class="footer-item">技术支持：<a href="mailto:407755824@qq.com">407755824@qq.com</a></span>
+      <span class="footer-divider">|</span>
+      <span class="footer-item">AIBug 自动修复平台 v1.0</span>
+    </div>
   </div>
 
 </body>

@@ -321,41 +321,49 @@ function renderProjectStatus() {
         <div>${(currentUser.role === 'admin' || currentUser.role === 'developer') ? `<button class="btn btn-sm btn-outline-primary" onclick="pullCode(${p.id})" title="拉取最新代码"><i class="bi bi-download"></i> 拉取</button>` : ''}</div>
       </div>
       <div class="project-item-body">
-        <div class="small text-muted"><i class="bi bi-git"></i> 分支：<span class="text-primary fw-bold">${escapeHtml(p.branch || 'master')}</span></div>
+        <div class="small text-muted"><i class="bi bi-git"></i> 分支：<span class="text-primary fw-bold" id="branch-${p.id}"><i class="bi bi-hourglass-split"></i> 获取中...</span></div>
         <div class="small text-muted"><i class="bi bi-folder2-open"></i> ${escapeHtml(pathDisplay)}</div>
         ${commitsHtml}
       </div>
     </div></div>`;
     
-    // 加载提交记录
-    loadRecentCommits(p.id);
+    // 加载 Git 状态（分支和提交记录）
+    loadGitStatus(p.id);
   });
   html += '</div>';
   $('#projectStatusContent').html(html);
 }
 
-// 加载最近提交记录
-function loadRecentCommits(projectId) {
+// 加载 Git 状态（分支 + 提交）
+function loadGitStatus(projectId) {
   $.ajax({
     url: '/api/projects/' + projectId + '/status',
     headers: { 'Authorization': 'Bearer ' + currentToken },
     success: function(res) {
-      if (res.success && res.data.commits && res.data.commits.length > 0) {
-        let commitsHtml = '<div class="mt-2">';
-        res.data.commits.forEach(commit => {
-          const time = new Date(commit.time).toLocaleString('zh-CN');
-          commitsHtml += `<div class="commit-item">
-            <div><span class="commit-hash">${escapeHtml(commit.hash)}</span> <span class="commit-time">${escapeHtml(time)}</span></div>
-            <div class="commit-message small text-muted">${escapeHtml(commit.message)}</div>
-          </div>`;
-        });
-        commitsHtml += '</div>';
-        $('#commits-' + projectId).html(commitsHtml);
-      } else {
-        $('#commits-' + projectId).html('<div class="mt-2 small text-muted">无提交记录</div>');
+      if (res.success) {
+        // 显示当前分支
+        const currentBranch = res.data.branch;
+        $('#branch-' + projectId).html(escapeHtml(currentBranch));
+        
+        // 显示提交记录
+        if (res.data.commits && res.data.commits.length > 0) {
+          let commitsHtml = '<div class="mt-2"><strong class="small text-muted"><i class="bi bi-clock-history"></i> 最近提交:</strong>';
+          res.data.commits.forEach(commit => {
+            const time = new Date(commit.time).toLocaleString('zh-CN');
+            commitsHtml += `<div class="commit-item">
+              <div><span class="commit-hash">${escapeHtml(commit.hash)}</span> <span class="commit-time">${escapeHtml(time)}</span></div>
+              <div class="commit-message small text-muted">${escapeHtml(commit.message)}</div>
+            </div>`;
+          });
+          commitsHtml += '</div>';
+          $('#commits-' + projectId).html(commitsHtml);
+        } else {
+          $('#commits-' + projectId).html('<div class="mt-2 small text-muted">无提交记录</div>');
+        }
       }
     },
     error: function() {
+      $('#branch-' + projectId).html('<span class="text-danger">获取失败</span>');
       $('#commits-' + projectId).html('<div class="mt-2 small text-danger">加载失败</div>');
     }
   });

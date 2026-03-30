@@ -27,23 +27,29 @@ module.exports = {
     {
       id: 1,
       name: '点评网客户端',
+      display_name: '点评网项目',
       path: '/Users/xwxgs/Desktop/meishubao/dianpingwang/flutter/msbdianping',
       branch: 'dev_1.2.0',
-      type: 'flutter'
+      type: 'flutter',
+      parent_id: null
     },
     {
       id: 2,
       name: '网校 iOS',
+      display_name: '网校项目',
       path: '/Users/xwxgs/Desktop/meishubao/netschool',
       branch: 'dev',
-      type: 'ios'
+      type: 'ios',
+      parent_id: null
     },
     {
       id: 3,
       name: '网校服务端',
+      display_name: '网校项目',
       path: '/Users/xwxgs/Desktop/meishubao/NetSService/artgem-online-school-app',
       branch: 'master',
-      type: 'nodejs'
+      type: 'nodejs',
+      parent_id: 2
     }
   ],
 

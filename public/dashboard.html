@@ -205,16 +205,28 @@ function loadCurrentProject() {
     success: function(res) {
       if (res.success) {
         currentProjectId = res.data?.id || null;
-        projectsCache = res.data ? [res.data, ...res.all.filter(p => p.id !== res.data.id)] : res.all;
+        projectsCache = res.all.flatMap(g => g.children.map(c => ({...c, display_name: g.display_name})));
         
-        // 填充项目选择器
+        // 填充项目选择器（分组显示）
         $('#currentProjectSelect').html('');
-        res.all.forEach(p => {
-          $('#currentProjectSelect').append(`<option value="${p.id}" ${p.id === currentProjectId ? 'selected' : ''}>${escapeHtml(p.name)}</option>`);
+        res.all.forEach(group => {
+          // 添加分组标题
+          if (group.children.length > 1) {
+            $('#currentProjectSelect').append(`<optgroup label="${escapeHtml(group.display_name)}"></optgroup>`);
+          } else {
+            $('#currentProjectSelect').append(`<option value="${group.children[0].id}" ${group.children[0].id === currentProjectId ? 'selected' : ''}>${escapeHtml(group.display_name)}</option>`);
+          }
+          
+          // 添加子项目
+          if (group.children.length > 1) {
+            group.children.forEach(c => {
+              $('#currentProjectSelect').append(`<option value="${c.id}" ${c.id === currentProjectId ? 'selected' : ''}>  ${escapeHtml(c.name)} (${c.type})</option>`);
+            });
+          }
         });
         
         // 显示路径
-        const current = res.data || (res.all.length > 0 ? res.all[0] : null);
+        const current = res.data || (res.all.length > 0 ? res.all[0].children[0] : null);
         if (current) {
           const pathDisplay = current.path.length > 80 ? '...' + current.path.substring(current.path.length - 80) : current.path;
           $('#projectPathDisplay').html(`<i class="bi bi-folder2-open"></i> ${escapeHtml(pathDisplay)} | <i class="bi bi-git"></i> 分支：<strong class="text-primary">${escapeHtml(current.branch || 'master')}</strong>`);

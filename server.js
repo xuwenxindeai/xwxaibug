@@ -352,16 +352,39 @@ app.post('/api/bugs/:id/analyze', async (req, res) => {
 // 获取当前选中的项目（从 Cookie 或默认第一个）
 app.get('/api/current-project', auth.requireAuth, (req, res) => {
   try {
-    const projects = db.db.prepare('SELECT * FROM projects WHERE enabled = 1').all();
+    const projects = db.db.prepare('SELECT * FROM projects WHERE enabled = 1 ORDER BY id').all();
     if (projects.length === 0) {
-      return res.json({ success: true, data: null });
+      return res.json({ success: true, data: null, all: [] });
     }
     
     // 从 Cookie 获取选中的项目 ID，或默认第一个
     const selectedId = req.cookies?.selectedProjectId ? parseInt(req.cookies.selectedProjectId) : projects[0].id;
     const selected = projects.find(p => p.id === selectedId) || projects[0];
     
-    res.json({ success: true, data: selected, all: projects });
+    // 按 display_name 分组
+    const grouped = {};
+    projects.forEach(p => {
+      const groupName = p.display_name || p.name;
+      if (!grouped[groupName]) {
+        grouped[groupName] = {
+          id: p.id,
+          display_name: groupName,
+          children: []
+        };
+      }
+      grouped[groupName].children.push({
+        id: p.id,
+        name: p.name,
+        type: p.type,
+        path: p.path,
+        branch: p.branch,
+        display_name: groupName  // 子项目也带上 display_name
+      });
+    });
+    
+    const all = Object.values(grouped);
+    
+    res.json({ success: true, data: selected, all });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

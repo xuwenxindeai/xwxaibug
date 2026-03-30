@@ -99,12 +99,19 @@ function initDatabase() {
 
   // 初始化默认项目
   const stmt = db.prepare(`
-    INSERT OR REPLACE INTO projects (id, name, path, branch, type, enabled)
-    VALUES (?, ?, ?, ?, ?, 1)
+    INSERT OR REPLACE INTO projects (id, name, display_name, path, branch, type, enabled)
+    VALUES (?, ?, ?, ?, ?, ?, 1)
   `);
 
   config.projects.forEach(project => {
-    stmt.run(project.id, project.name, project.path, project.branch || 'master', project.type);
+    stmt.run(
+      project.id, 
+      project.name, 
+      project.display_name || project.name, 
+      project.path, 
+      project.branch || 'master', 
+      project.type
+    );
   });
 
   // 初始化默认管理员账户（密码：admin123）

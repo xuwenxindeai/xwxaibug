@@ -727,34 +727,6 @@ function onBranchChange(projectId, branch) {
   }
 }
 
-function loadBranches(projectId) {
-  const btn = event.target;
-  $(btn).prop('disabled', true).html('<i class="bi bi-hourglass-split"></i> 加载中...');
-  $.ajax({
-    url: '/api/projects/' + projectId + '/branches',
-    headers: { 'Authorization': 'Bearer ' + currentToken },
-    success: function(res) {
-      $(btn).prop('disabled', false).html('<i class="bi bi-git"></i> 获取分支');
-      if (res.success) {
-        const select = $('#branch-select-' + projectId);
-        const currentBranch = res.data.current;
-        select.html('');
-        res.data.all.forEach(b => {
-          const selected = b === currentBranch ? 'selected' : '';
-          select.append(`<option value="${b}" ${selected}>${b}${b === currentBranch ? ' (当前)' : ''}</option>`);
-        });
-        $('#branches-' + projectId).show();
-        $('#git-branch-' + projectId).text(currentBranch);
-      } else {
-        alert('获取失败：' + res.error);
-      }
-    },
-    error: function() {
-      $(btn).prop('disabled', false).html('<i class="bi bi-git"></i> 获取分支');
-      alert('获取失败');
-    }
-  });
-}
 
 function updateBranch(projectId) {
   const branch = $('#branch-select-' + projectId).val();

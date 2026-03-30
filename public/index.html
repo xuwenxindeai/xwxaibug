@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AIBug 自动修复平台</title>
+  
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  
+  <style>
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .main-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    .card {
+      border: none;
+      border-radius: 15px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      margin-bottom: 20px;
+    }
+    
+    .card-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-radius: 15px 15px 0 0 !important;
+      padding: 20px;
+      font-weight: 600;
+    }
+    
+    .stat-card {
+      text-align: center;
+      padding: 25px;
+      transition: transform 0.3s;
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-5px);
+    }
+    
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+    
+    .stat-label {
+      color: #6c757d;
+      font-size: 0.9rem;
+    }
+    
+    .status-badge {
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    
+    .status-pending { background: #fff3cd; color: #856404; }
+    .status-analyzing { background: #cce5ff; color: #004085; }
+    .status-ready_to_fix { background: #d4edda; color: #155724; }
+    .status-fixed { background: #d1ecf1; color: #0c5460; }
+    .status-error { background: #f8d7da; color: #721c24; }
+    
+    .btn-analyze {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      color: white;
+    }
+    
+    .btn-analyze:hover {
+      background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+      color: white;
+    }
+    
+    .btn-fix {
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      border: none;
+      color: white;
+    }
+    
+    .btn-fix:hover {
+      background: linear-gradient(135deg, #38ef7d 0%, #11998e 100%);
+      color: white;
+    }
+    
+    .table-responsive {
+      border-radius: 0 0 15px 15px;
+    }
+    
+    .code-preview {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 15px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      max-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    
+    .code-compare-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin: 15px 0;
+    }
+    
+    .code-panel {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    .code-panel-header {
+      background: #f5f5f5;
+      padding: 10px 15px;
+      border-bottom: 1px solid #e0e0e0;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    
+    .code-panel-header.problem {
+      background: #ffebee;
+      color: #c62828;
+    }
+    
+    .code-panel-header.solution {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    
+    .code-content {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 15px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      max-height: 400px;
+      overflow-y: auto;
+      white-space: pre;
+      line-height: 1.5;
+    }
+    
+    .code-line {
+      display: block;
+    }
+    
+    .code-line.highlight {
+      background: rgba(255, 235, 59, 0.2);
+      margin: 0 -15px;
+      padding: 0 15px;
+    }
+    
+    .code-line.added {
+      background: rgba(76, 175, 80, 0.2);
+      color: #81c784;
+    }
+    
+    .code-line.removed {
+      background: rgba(244, 67, 54, 0.2);
+      color: #e57373;
+    }
+    
+    .line-number {
+      display: inline-block;
+      width: 40px;
+      color: #858585;
+      text-align: right;
+      margin-right: 15px;
+      user-select: none;
+    }
+    
+    .changes-list {
+      background: #e3f2fd;
+      border-left: 4px solid #2196F3;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 5px;
+    }
+    
+    .changes-list ul {
+      margin: 10px 0 0 0;
+      padding-left: 20px;
+    }
+    
+    .changes-list li {
+      margin: 5px 0;
+      color: #1565C0;
+    }
+    
+    .analysis-box {
+      background: #e7f3ff;
+      border-left: 4px solid #2196F3;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 5px;
+    }
+    
+    .fix-box {
+      background: #e8f5e9;
+      border-left: 4px solid #4CAF50;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 5px;
+    }
+    
+    #loadingOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    
+    .spinner-border {
+      width: 3rem;
+      height: 3rem;
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay">
+    <div class="text-center text-white">
+      <div class="spinner-border mb-3" role="status"></div>
+      <div id="loadingText">处理中...</div>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <!-- 标题 -->
+    <div class="text-center mb-4">
+      <h1 class="text-white fw-bold">
+        <i class="bi bi-robot"></i> AIBug 自动修复平台
+      </h1>
+      <p class="text-white-50">AI 驱动的智能 Bug 分析与自动修复系统</p>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="row mb-4">
+      <div class="col-md-2">
+        <div class="card stat-card">
+          <div class="stat-number text-primary" id="stat-total">0</div>
+          <div class="stat-label">总 Bug 数</div>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="card stat-card">
+          <div class="stat-number text-warning" id="stat-pending">0</div>
+          <div class="stat-label">待处理</div>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="card stat-card">
+          <div class="stat-number text-info" id="stat-analyzing">0</div>
+          <div class="stat-label">分析中</div>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="card stat-card">
+          <div class="stat-number text-success" id="stat-ready">0</div>
+          <div class="stat-label">待修复</div>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="card stat-card">
+          <div class="stat-number text-primary" id="stat-fixed">0</div>
+          <div class="stat-label">已修复</div>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <div class="card stat-card">
+          <div class="stat-number text-danger" id="stat-error">0</div>
+          <div class="stat-label">错误</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 操作栏 -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <i class="bi bi-gear"></i> 操作
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <button class="btn btn-analyze w-100" onclick="showAddBugModal()">
+              <i class="bi bi-plus-lg"></i> 提交 Bug
+            </button>
+          </div>
+          <div class="col-md-3">
+            <button class="btn btn-primary w-100" onclick="refreshBugs()">
+              <i class="bi bi-arrow-clockwise"></i> 刷新列表
+            </button>
+          </div>
+          <div class="col-md-3">
+            <button class="btn btn-success w-100" onclick="triggerPoll()">
+              <i class="bi bi-play-circle"></i> 立即分析
+            </button>
+          </div>
+          <div class="col-md-3">
+            <button class="btn btn-info w-100" onclick="showStats()">
+              <i class="bi bi-bar-chart"></i> 查看统计
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bug 列表 -->
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-bug"></i> Bug 列表
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th width="80">ID</th>
+                <th>标题</th>
+                <th width="150">项目</th>
+                <th width="100">优先级</th>
+                <th width="120">状态</th>
+                <th width="100">位置</th>
+                <th width="180">操作</th>
+              </tr>
+            </thead>
+            <tbody id="bugTableBody">
+              <tr>
+                <td colspan="7" class="text-center py-4">
+                  <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                  <div class="mt-2 text-muted">加载中...</div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 添加 Bug 模态框 -->
+  <div class="modal fade" id="addBugModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-plus-lg"></i> 提交新 Bug</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="addBugForm">
+            <div class="mb-3">
+              <label class="form-label">标题 *</label>
+              <input type="text" class="form-control" id="bugTitle" required placeholder="简要描述 Bug">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">描述 *</label>
+              <textarea class="form-control" id="bugDescription" rows="4" required placeholder="详细描述 Bug 现象、复现步骤等"></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">项目</label>
+              <select class="form-select" id="bugProject">
+                <option value="">选择项目</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">优先级</label>
+              <select class="form-select" id="bugPriority">
+                <option value="low">低</option>
+                <option value="medium" selected>中</option>
+                <option value="high">高</option>
+                <option value="critical">紧急</option>
+              </select>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-primary" onclick="submitBug()">提交</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 编辑 Bug 模态框 -->
+  <div class="modal fade" id="editBugModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-pencil"></i> 编辑 Bug</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="editBugForm">
+            <input type="hidden" id="editBugId">
+            <div class="mb-3">
+              <label class="form-label">标题 *</label>
+              <input type="text" class="form-control" id="editBugTitle" required placeholder="简要描述 Bug">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">描述 *</label>
+              <textarea class="form-control" id="editBugDescription" rows="4" required placeholder="详细描述 Bug 现象、复现步骤等"></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">项目</label>
+              <select class="form-select" id="editBugProject">
+                <option value="">选择项目</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">优先级</label>
+              <select class="form-select" id="editBugPriority">
+                <option value="low">低</option>
+                <option value="medium">中</option>
+                <option value="high">高</option>
+                <option value="critical">紧急</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">状态</label>
+              <select class="form-select" id="editBugStatus">
+                <option value="pending">待处理</option>
+                <option value="analyzing">分析中</option>
+                <option value="ready_to_fix">待修复</option>
+                <option value="fixed">已修复</option>
+                <option value="error">错误</option>
+              </select>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-danger" onclick="deleteBug()">删除</button>
+          <button type="button" class="btn btn-primary" onclick="saveBugEdit()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bug 详情模态框 -->
+  <div class="modal fade" id="bugDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="bugDetailTitle">Bug 详情</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body" id="bugDetailBody">
+          <!-- 动态填充 -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+          <button type="button" class="btn btn-fix" id="btnApplyFix" style="display:none;" onclick="applyFix()">
+            <i class="bi bi-wrench"></i> 一键修复
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- jQuery -->
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <script>
+    let currentBugId = null;
+
+    // 页面加载完成
+    $(document).ready(function() {
+      // 先加载项目缓存，再加载其他数据
+      loadProjectsCache().then(function() {
+        loadProjects();
+        loadBugs();
+        loadStats();
+      });
+      
+      // 每 30 秒自动刷新
+      setInterval(() => {
+        loadBugs();
+        loadStats();
+      }, 30000);
+    });
+
+    // 加载项目列表
+    function loadProjects() {
+      $.get('/api/projects', function(res) {
+        if (res.success) {
+          projectsCache = res.data;
+          // 填充添加模态框
+          res.data.forEach(p => {
+            $('#bugProject').append(`<option value="${p.id}">${p.name}</option>`);
+          });
+          // 填充编辑模态框
+          res.data.forEach(p => {
+            $('#editBugProject').append(`<option value="${p.id}">${p.name}</option>`);
+          });
+        }
+      });
+    }
+
+    // 加载 Bug 列表
+    function loadBugs() {
+      $.get('/api/bugs', function(res) {
+        if (res.success) {
+          renderBugTable(res.data);
+        }
+      });
+    }
+
+    // 渲染 Bug 表格
+    function renderBugTable(bugs) {
+      if (bugs.length === 0) {
+        $('#bugTableBody').html(`
+          <tr>
+            <td colspan="7" class="text-center py-4 text-muted">
+              <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+              <div class="mt-2">暂无 Bug</div>
+            </td>
+          </tr>
+        `);
+        return;
+      }
+
+      let html = '';
+      bugs.forEach(bug => {
+        const statusClass = `status-${bug.status}`;
+        const statusText = {
+          'pending': '待处理',
+          'analyzing': '分析中',
+          'ready_to_fix': '待修复',
+          'fixed': '已修复',
+          'error': '错误'
+        }[bug.status] || bug.status;
+
+        const priorityClass = {
+          'low': 'text-muted',
+          'medium': 'text-warning',
+          'high': 'text-danger',
+          'critical': 'text-danger fw-bold'
+        }[bug.priority] || '';
+
+        // 获取项目名称
+        let projectDisplay = '-';
+        if (bug.project_id) {
+          const project = projectsCache.find(p => p.id == bug.project_id);
+          if (project) {
+            projectDisplay = `<span title="${escapeHtml(project.path)}">${escapeHtml(project.name)}</span>`;
+          } else {
+            projectDisplay = '<span class="text-muted">未知</span>';
+          }
+        } else {
+          projectDisplay = '<span class="text-muted">未选择</span>';
+        }
+
+        html += `
+          <tr>
+            <td><strong>#${bug.id}</strong></td>
+            <td>
+              <a href="#" onclick="editBug(${bug.id}); return false;" title="点击编辑">
+                <i class="bi bi-pencil"></i> ${escapeHtml(bug.title)}
+              </a>
+            </td>
+            <td>${projectDisplay}</td>
+            <td class="${priorityClass}">${bug.priority}</td>
+            <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+            <td>${bug.file_path ? bug.file_path.split('/').pop() + ':' + bug.line_number : '-'}</td>
+            <td>
+              <div class="btn-group btn-group-sm" role="group">
+                ${bug.status === 'pending' ? `
+                  <button class="btn btn-outline-primary" onclick="analyzeBug(${bug.id})" title="AI 分析">
+                    <i class="bi bi-search"></i> 分析
+                  </button>
+                ` : ''}
+                ${bug.status === 'ready_to_fix' ? `
+                  <button class="btn btn-outline-info" onclick="showBugDetail(${bug.id})" title="查看详情">
+                    <i class="bi bi-eye"></i> 详情
+                  </button>
+                  <button class="btn btn-fix" onclick="confirmFix(${bug.id})" title="一键修复">
+                    <i class="bi bi-wrench"></i> 修复
+                  </button>
+                ` : ''}
+                ${bug.status === 'analyzing' ? `
+                  <span class="text-muted"><i class="bi bi-hourglass-split"></i> 分析中...</span>
+                ` : ''}
+                ${bug.status === 'fixed' ? `
+                  <button class="btn btn-outline-success" onclick="showBugDetail(${bug.id})" title="查看详情">
+                    <i class="bi bi-check-circle"></i> 已完成
+                  </button>
+                ` : ''}
+                ${bug.status === 'error' ? `
+                  <button class="btn btn-outline-danger" onclick="showBugDetail(${bug.id})" title="查看错误">
+                    <i class="bi bi-exclamation-triangle"></i> 错误
+                  </button>
+                ` : ''}
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+
+      $('#bugTableBody').html(html);
+    }
+
+    // 加载统计
+    function loadStats() {
+      $.get('/api/stats', function(res) {
+        if (res.success) {
+          $('#stat-total').text(res.data.total);
+          $('#stat-pending').text(res.data.pending);
+          $('#stat-analyzing').text(res.data.analyzing);
+          $('#stat-ready').text(res.data.ready_to_fix);
+          $('#stat-fixed').text(res.data.fixed);
+          $('#stat-error').text(res.data.error);
+        }
+      });
+    }
+
+    // 显示添加 Bug 模态框
+    function showAddBugModal() {
+      $('#addBugForm')[0].reset();
+      $('#addBugModal').modal('show');
+    }
+
+    // 提交 Bug
+    function submitBug() {
+      const data = {
+        title: $('#bugTitle').val(),
+        description: $('#bugDescription').val(),
+        project_id: $('#bugProject').val(),
+        priority: $('#bugPriority').val()
+      };
+
+      if (!data.title || !data.description) {
+        alert('请填写标题和描述');
+        return;
+      }
+
+      showLoading('提交 Bug...');
+      
+      $.ajax({
+        url: '/api/bugs',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(res) {
+          hideLoading();
+          $('#addBugModal').modal('hide');
+          if (res.success) {
+            alert('Bug 提交成功！');
+            loadBugs();
+            loadStats();
+          } else {
+            alert('提交失败：' + res.error);
+          }
+        },
+        error: function() {
+          hideLoading();
+          alert('提交失败，请稍后重试');
+        }
+      });
+    }
+
+    // 显示 Bug 详情
+    function showBugDetail(id) {
+      currentBugId = id;
+      showLoading('加载详情...');
+      
+      $.get('/api/bugs/' + id, function(res) {
+        hideLoading();
+        if (res.success) {
+          const bug = res.data;
+          $('#bugDetailTitle').html(`Bug #${bug.id}: ${escapeHtml(bug.title)}`);
+          
+          let html = `
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <strong>状态:</strong> <span class="status-badge status-${bug.status}">${bug.status}</span>
+              </div>
+              <div class="col-md-6">
+                <strong>优先级:</strong> <span class="${getPriorityClass(bug.priority)}">${getPriorityText(bug.priority)}</span>
+              </div>
+            </div>
+            
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <strong>项目:</strong> ${escapeHtml(bug.project_name || '-')}
+              </div>
+              <div class="col-md-6">
+                <strong>定位:</strong> ${bug.file_path ? `<code>${escapeHtml(bug.file_path)}:${bug.line_number}</code>` : '-'}
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <strong><i class="bi bi-bug"></i> Bug 描述:</strong>
+              <p class="mt-2 p-3 bg-light rounded">${escapeHtml(bug.description)}</p>
+            </div>
+          `;
+
+          // AI 分析
+          if (bug.ai_analysis) {
+            html += `
+              <div class="analysis-box">
+                <strong><i class="bi bi-lightbulb"></i> AI 分析结果:</strong>
+                <p class="mb-0 mt-2">${escapeHtml(bug.ai_analysis)}</p>
+              </div>
+            `;
+          }
+
+          // 代码对比展示
+          if (bug.original_code_snippet || bug.fixed_code_snippet) {
+            html += `
+              <div class="mt-4">
+                <h6 class="fw-bold"><i class="bi bi-code-slash"></i> 代码问题与修复对比</h6>
+                <div class="code-compare-container">
+                  <div class="code-panel">
+                    <div class="code-panel-header problem">
+                      <i class="bi bi-exclamation-triangle"></i> 问题代码
+                      ${bug.file_path ? `<small class="float-end">${escapeHtml(bug.file_path)} 第 ${bug.snippet_start_line || bug.line_number} 行起</small>` : ''}
+                    </div>
+                    <div class="code-content">${renderCodeWithLineNumbers(bug.original_code_snippet || '无', bug.line_number, bug.snippet_start_line || 1)}</div>
+                  </div>
+                  <div class="code-panel">
+                    <div class="code-panel-header solution">
+                      <i class="bi bi-check-circle"></i> 修复代码
+                    </div>
+                    <div class="code-content">${renderCodeWithLineNumbers(bug.fixed_code_snippet || bug.ai_fix_code || '无', null, 1)}</div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }
+
+          // 修改点列表
+          if (bug.code_changes) {
+            try {
+              const changes = JSON.parse(bug.code_changes);
+              if (changes && changes.length > 0) {
+                html += `
+                  <div class="changes-list">
+                    <strong><i class="bi bi-list-check"></i> 修复要点:</strong>
+                    <ul>
+                `;
+                changes.forEach(change => {
+                  html += `<li>${escapeHtml(change)}</li>`;
+                });
+                html += `</ul></div>`;
+              }
+            } catch (e) {}
+          }
+
+          // 完整的修复代码
+          if (bug.ai_fix_code) {
+            html += `
+              <div class="mt-4">
+                <h6 class="fw-bold"><i class="bi bi-file-earmark-code"></i> 完整修复代码</h6>
+                <div class="code-preview mt-2" style="max-height: 500px; background: #1e1e1e; color: #d4d4d4;">${escapeHtml(bug.ai_fix_code)}</div>
+              </div>
+            `;
+          }
+          
+          // 根据状态显示修复按钮
+          if (bug.status === 'ready_to_fix' && bug.ai_fix_code) {
+            $('#btnApplyFix').show().html('<i class="bi bi-wrench"></i> 一键修复');
+          } else if (bug.status === 'fixed') {
+            $('#btnApplyFix').hide();
+          } else {
+            $('#btnApplyFix').hide();
+          }
+
+          if (bug.logs && bug.logs.length > 0) {
+            html += `
+              <div class="mt-4">
+                <strong><i class="bi bi-clock-history"></i> 处理日志:</strong>
+                <ul class="list-group mt-2">
+            `;
+            bug.logs.forEach(log => {
+              const time = new Date(log.created_at).toLocaleString('zh-CN');
+              html += `
+                <li class="list-group-item">
+                  <small class="text-muted">${time}</small>
+                  <br>
+                  <strong>${log.action}</strong>: ${escapeHtml(log.details || '')}
+                </li>
+              `;
+            });
+            html += `</ul></div>`;
+          }
+
+          $('#bugDetailBody').html(html);
+          $('#bugDetailModal').modal('show');
+        } else {
+          alert('加载失败：' + res.error);
+        }
+      });
+    }
+
+    // 分析 Bug
+    function analyzeBug(id) {
+      if (!confirm('确定要分析这个 Bug 吗？')) return;
+      
+      showLoading('分析中...');
+      
+      $.post('/api/bugs/' + id + '/analyze', function(res) {
+        hideLoading();
+        if (res.success) {
+          alert('分析已启动，请稍后刷新查看结果');
+          loadBugs();
+        } else {
+          alert('分析失败：' + res.error);
+        }
+      });
+    }
+
+    // 确认修复（从表格按钮点击）
+    function confirmFix(id) {
+      currentBugId = id;
+      
+      // 先加载详情，确认有修复代码后再执行
+      showLoading('加载修复方案...');
+      
+      $.get('/api/bugs/' + id, function(res) {
+        hideLoading();
+        if (res.success && res.data.ai_fix_code) {
+          const bug = res.data;
+          
+          // 显示修复确认对话框
+          const confirmMsg = `
+🔧 AI 修复确认
+
+📋 Bug: ${bug.title}
+
+📍 定位：${bug.file_path || '未知'}:${bug.line_number || '?'}
+
+💡 分析：
+${bug.ai_analysis || '无'}
+
+---
+⚠️ 此操作将直接修改源码文件！
+系统会自动创建备份文件。
+
+确定要应用这个修复吗？
+          `;
+          
+          if (confirm(confirmMsg)) {
+            applyFix();
+          }
+        } else {
+          alert('该 Bug 暂无可用的修复代码，请先查看 AI 分析结果');
+          showBugDetail(id);
+        }
+      });
+    }
+
+    // 应用修复
+    function applyFix() {
+      if (!currentBugId) {
+        alert('未指定 Bug ID');
+        return;
+      }
+      
+      showLoading('应用修复...');
+      
+      $.post('/api/bugs/' + currentBugId + '/fix', function(res) {
+        hideLoading();
+        if (res.success) {
+          alert('✅ 修复已成功应用！\n\n备份文件：' + res.data.backupPath);
+          $('#bugDetailModal').modal('hide');
+          loadBugs();
+          loadStats();
+        } else {
+          alert('❌ 修复失败：' + res.error);
+        }
+      }).fail(function(xhr) {
+        hideLoading();
+        alert('❌ 修复失败：' + (xhr.responseJSON?.error || '网络错误'));
+      });
+    }
+
+    // 触发轮询
+    function triggerPoll() {
+      showLoading('开始分析所有待处理 Bug...');
+      
+      $.post('/api/poll', function(res) {
+        hideLoading();
+        if (res.success) {
+          alert('轮询完成！');
+          loadBugs();
+          loadStats();
+        } else {
+          alert('轮询失败：' + res.message);
+        }
+      });
+    }
+
+    // 刷新列表
+    function refreshBugs() {
+      showLoading('刷新中...');
+      setTimeout(() => {
+        loadBugs();
+        loadStats();
+        hideLoading();
+      }, 500);
+    }
+
+    // 显示统计
+    function showStats() {
+      alert('统计信息已在页面顶部显示');
+    }
+
+    // 工具函数
+    function showLoading(text) {
+      $('#loadingText').text(text);
+      $('#loadingOverlay').css('display', 'flex');
+    }
+
+    function hideLoading() {
+      $('#loadingOverlay').hide();
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+    
+    // 存储项目列表
+    let projectsCache = [];
+    
+    // 获取项目列表（带缓存）
+    function loadProjectsCache() {
+      return new Promise((resolve) => {
+        if (projectsCache.length > 0) {
+          resolve(projectsCache);
+          return;
+        }
+        $.get('/api/projects', function(res) {
+          if (res.success) {
+            projectsCache = res.data;
+          }
+          resolve(projectsCache);
+        });
+      });
+    }
+    
+    // 根据项目 ID 获取名称
+    function getProjectName(projectId) {
+      const project = projectsCache.find(p => p.id == projectId);
+      return project ? escapeHtml(project.name) : '<span class="text-muted">未知</span>';
+    }
+    
+    // 获取优先级样式
+    function getPriorityClass(priority) {
+      const classes = {
+        'low': 'text-muted',
+        'medium': 'text-warning',
+        'high': 'text-danger',
+        'critical': 'text-danger fw-bold'
+      };
+      return classes[priority] || '';
+    }
+    
+    // 获取优先级文本
+    function getPriorityText(priority) {
+      const texts = {
+        'low': '低',
+        'medium': '中',
+        'high': '高',
+        'critical': '紧急'
+      };
+      return texts[priority] || priority;
+    }
+    
+    // 渲染带行号的代码
+    function renderCodeWithLineNumbers(code, highlightLine, startLine) {
+      if (!code) return '<div class="text-muted">无代码</div>';
+      
+      const lines = code.split('\n');
+      let html = '';
+      
+      for (let i = 0; i < lines.length; i++) {
+        const lineNum = startLine + i;
+        const isHighlight = highlightLine && lineNum === highlightLine;
+        const lineClass = isHighlight ? 'highlight' : '';
+        
+        html += `<div class="code-line ${lineClass}">`;
+        html += `<span class="line-number">${lineNum}</span>`;
+        html += `<span>${escapeHtml(lines[i])}</span>`;
+        html += `</div>`;
+      }
+      
+      return html;
+    }
+    
+    // 编辑 Bug
+    function editBug(id) {
+      currentBugId = id;
+      showLoading('加载 Bug 信息...');
+      
+      $.get('/api/bugs/' + id, function(res) {
+        hideLoading();
+        if (res.success) {
+          const bug = res.data;
+          $('#editBugId').val(bug.id);
+          $('#editBugTitle').val(bug.title);
+          $('#editBugDescription').val(bug.description);
+          $('#editBugPriority').val(bug.priority);
+          $('#editBugStatus').val(bug.status);
+          $('#editBugProject').val(bug.project_id || '');
+          
+          $('#editBugModal').modal('show');
+        } else {
+          alert('加载失败：' + res.error);
+        }
+      });
+    }
+    
+    // 保存 Bug 编辑
+    function saveBugEdit() {
+      const data = {
+        title: $('#editBugTitle').val(),
+        description: $('#editBugDescription').val(),
+        priority: $('#editBugPriority').val(),
+        status: $('#editBugStatus').val(),
+        project_id: $('#editBugProject').val()
+      };
+      
+      if (!data.title || !data.description) {
+        alert('请填写标题和描述');
+        return;
+      }
+      
+      showLoading('保存中...');
+      
+      $.ajax({
+        url: '/api/bugs/' + currentBugId,
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(res) {
+          hideLoading();
+          $('#editBugModal').modal('hide');
+          if (res.success) {
+            alert('✅ 保存成功！');
+            loadBugs();
+            loadStats();
+          } else {
+            alert('保存失败：' + res.error);
+          }
+        },
+        error: function() {
+          hideLoading();
+          alert('保存失败，请稍后重试');
+        }
+      });
+    }
+    
+    // 删除 Bug
+    function deleteBug() {
+      if (!confirm('⚠️ 确定要删除这个 Bug 吗？\n\n此操作不可恢复！')) return;
+      
+      showLoading('删除中...');
+      
+      $.ajax({
+        url: '/api/bugs/' + currentBugId,
+        method: 'DELETE',
+        success: function(res) {
+          hideLoading();
+          $('#editBugModal').modal('hide');
+          if (res.success) {
+            alert('已删除');
+            loadBugs();
+            loadStats();
+          } else {
+            alert('删除失败：' + res.error);
+          }
+        },
+        error: function() {
+          hideLoading();
+          alert('删除失败，请稍后重试');
+        }
+      });
+    }
+  </script>
+</body>
+</html>

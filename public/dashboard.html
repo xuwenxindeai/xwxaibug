@@ -307,7 +307,7 @@ function renderProjectStatus() {
   
   let html = '<div class="row">';
   currentGroup.forEach(p => {
-    const pathDisplay = p.path.length > 60 ? '...' + p.path.substring(p.path.length - 60) : p.path;
+    const pathDisplay = formatPath(p.path);
     const icon = p.type === 'ios' ? 'apple' : p.type === 'nodejs' ? 'file-code' : 'braces';
     
     // 加载 Git 提交记录

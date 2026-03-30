@@ -646,57 +646,85 @@ function showProjectConfig() {
     html += `<div class="project-item">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <strong><i class="bi bi-${icon}"></i> ${escapeHtml(p.name)}</strong>
-        <button class="btn btn-sm btn-outline-primary" onclick="loadBranches(${p.id})"><i class="bi bi-git"></i> 获取分支</button>
       </div>
       <div class="row g-2 align-items-center mb-2">
-        <div class="col-auto"><label class="col-form-label">当前分支:</label></div>
+        <div class="col-auto"><label class="col-form-label">切换分支:</label></div>
         <div class="col-auto">
-          <select class="form-select form-select-sm" id="branch-${p.id}" style="width:250px;" disabled>
-            <option value="${escapeHtml(p.branch || 'master')}">${escapeHtml(p.branch || 'master')} (加载中...)</option>
+          <select class="form-select form-select-sm" id="branch-select-${p.id}" style="width:300px;" onchange="onBranchChange(${p.id}, this.value)" disabled>
+            <option value="">加载中...</option>
           </select>
         </div>
         <div class="col-auto">
-          <button class="btn btn-sm btn-success" id="btn-update-${p.id}" onclick="updateBranch(${p.id})" disabled><i class="bi bi-check-lg"></i> 更新</button>
+          <button class="btn btn-sm btn-success" id="btn-update-${p.id}" onclick="updateBranch(${p.id})" disabled><i class="bi bi-check-lg"></i> 切换</button>
         </div>
       </div>
-      <div id="branches-${p.id}" class="mt-2" style="display:none;">
-        <label class="form-label small">选择分支:</label>
-        <select class="form-select form-select-sm" id="branch-select-${p.id}" onchange="enableBranchUpdate(${p.id}, this.value)"></select>
-        <div class="form-text small">当前 Git 分支：<strong class="text-primary" id="git-branch-${p.id}">${escapeHtml(p.branch || 'master')}</strong></div>
+      <div class="mt-2 small">
+        <span class="text-muted"><i class="bi bi-git"></i> 当前分支:</span>
+        <strong class="text-primary ms-1" id="git-branch-${p.id}"><i class="bi bi-hourglass-split"></i> 获取中...</strong>
       </div>
-      <div class="mt-2 small text-muted"><i class="bi bi-folder2-open"></i> ${escapeHtml(p.path)}</div>
+      <div class="mt-1 small text-muted"><i class="bi bi-folder2-open"></i> ${escapeHtml(p.path)}</div>
     </div>`;
   });
   $('#projectConfigBody').html(html);
   $('#projectConfigModal').modal('show');
   
-  // 加载每个项目的当前 Git 分支
+  // 自动加载每个项目的分支列表
   currentGroup.forEach(p => {
-    loadCurrentGitBranch(p.id);
+    loadBranches(p.id);
   });
   
   hideLoading();
 }
 
-// 加载当前 Git 分支
-function loadCurrentGitBranch(projectId) {
+// 加载分支列表（自动调用）
+function loadBranches(projectId) {
   $.ajax({
     url: '/api/projects/' + projectId + '/branches',
     headers: { 'Authorization': 'Bearer ' + currentToken },
     success: function(res) {
       if (res.success) {
+        const select = $('#branch-select-' + projectId);
         const currentBranch = res.data.current;
-        const select = $('#branch-' + projectId);
-        select.html(`<option value="${escapeHtml(currentBranch)}">${escapeHtml(currentBranch)} (当前)</option>`);
+        
+        // 填充选择器
+        select.html('');
+        res.data.all.forEach(b => {
+          const selected = b === currentBranch ? 'selected' : '';
+          const currentMark = b === currentBranch ? ' (当前)' : '';
+          select.append(`<option value="${b}" ${selected}>${b}${currentMark}</option>`);
+        });
+        
+        // 启用选择器
+        select.prop('disabled', false);
+        
+        // 显示当前分支
         $('#git-branch-' + projectId).text(currentBranch);
+        
+        // 保存当前分支到 data 属性
+        select.data('current', currentBranch);
+      } else {
+        $('#branch-select-' + projectId).html('<option value="">加载失败</option>');
+        $('#git-branch-' + projectId).html('<span class="text-danger">获取失败</span>');
       }
+    },
+    error: function() {
+      $('#branch-select-' + projectId).html('<option value="">加载失败</option>');
+      $('#git-branch-' + projectId).html('<span class="text-danger">获取失败</span>');
     }
   });
 }
 
-// 启用分支更新按钮
-function enableBranchUpdate(projectId, branch) {
-  $('#btn-update-' + projectId).prop('disabled', false);
+// 分支改变时
+function onBranchChange(projectId, branch) {
+  const select = $('#branch-select-' + projectId);
+  const current = select.data('current');
+  
+  // 如果选择的是当前分支，禁用更新按钮
+  if (branch === current) {
+    $('#btn-update-' + projectId).prop('disabled', true);
+  } else {
+    $('#btn-update-' + projectId).prop('disabled', false);
+  }
 }
 
 function loadBranches(projectId) {
@@ -730,8 +758,11 @@ function loadBranches(projectId) {
 
 function updateBranch(projectId) {
   const branch = $('#branch-select-' + projectId).val();
-  if (!branch) { alert('请先选择分支'); return; }
-  if (!confirm(`确定切换 ${projectId} 到分支 ${branch}?`)) return;
+  if (!branch || branch === $('#branch-select-' + projectId).data('current')) { 
+    alert('请选择一个不同的分支'); 
+    return; 
+  }
+  if (!confirm(`确定切换到分支 ${branch}?\n\n⚠️ 请确保工作区已保存，未提交的更改可能会丢失。`)) return;
   showLoading('切换分支...');
   $.ajax({
     url: '/api/projects/' + projectId + '/checkout',
@@ -743,10 +774,10 @@ function updateBranch(projectId) {
       hideLoading();
       if (res.success) {
         alert('✅ 切换成功！\n当前分支：' + branch);
-        $('#branches-' + projectId).hide();
-        $('#btn-update-' + projectId).prop('disabled', true);
         // 刷新项目状态
         loadCurrentProject();
+        // 重新加载配置
+        showProjectConfig();
       } else {
         alert('切换失败：' + res.error);
       }

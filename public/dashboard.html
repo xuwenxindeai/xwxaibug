@@ -404,13 +404,14 @@ function renderBugTable(bugs) {
   bugs.forEach(bug => {
     const statusClass = `status-${bug.status}`;
     const statusText = { 'pending': '待处理', 'analyzing': '分析中', 'ready_to_fix': '待修复', 'fixed': '已修复', 'error': '错误' }[bug.status] || bug.status;
-    const priorityClass = { 'low': 'text-muted', 'medium': 'text-warning', 'high': 'text-danger', 'critical': 'text-danger fw-bold' }[bug.priority] || '';
+    const priorityText = { 'P0': 'P0 紧急', 'P1': 'P1 高', 'P2': 'P2 中', 'P3': 'P3 低' }[bug.priority] || bug.priority;
+    const priorityClass = { 'P0': 'text-danger fw-bold', 'P1': 'text-danger', 'P2': 'text-warning', 'P3': 'text-muted' }[bug.priority] || '';
     const lastModified = bug.updated_at ? new Date(bug.updated_at).toLocaleString('zh-CN') : '-';
     html += `<tr>
       <td><strong>#${bug.id}</strong></td>
       <td><a href="#" onclick="editBug(${bug.id});return false;">${escapeHtml(bug.title)}</a></td>
       <td>${getProjectName(bug.project_id)}</td>
-      <td class="${priorityClass}">${bug.priority}</td>
+      <td class="${priorityClass}">${priorityText}</td>
       <td><span class="status-badge ${statusClass}" style="cursor:pointer;" onclick="changeBugStatus(${bug.id}, '${bug.status}')" title="点击修改状态">${statusText}</span></td>
       <td>${bug.file_path ? bug.file_path.split('/').pop() + ':' + bug.line_number : '-'}</td>
       <td><small class="text-muted">${lastModified}</small></td>
@@ -542,7 +543,7 @@ function showAddBugModal() {
   $('#editBugId').val('');
   $('#bugTitle').val('');
   $('#bugDescription').val('');
-  $('#bugPriority').val('medium');
+  $('#bugPriority').val('P2');
   
   // 默认使用当前父项目下的第一个子项目
   const currentGroup = projectsCache.filter(p => p.group_id === currentProjectId);

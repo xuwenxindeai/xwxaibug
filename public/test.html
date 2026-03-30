@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Test</title></head>
+<body>
+<h1>测试页面</h1>
+<div id="output"></div>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script>
+$(document).ready(function() {
+  $('#output').html('<p>✅ jQuery 加载成功</p>');
+  const token = localStorage.getItem('aibug_token');
+  if (!token) {
+    $('#output').append('<p>❌ 无 Token，请先到 /login.html 登录</p>');
+  } else {
+    $('#output').append('<p>✅ Token 存在</p>');
+    $.ajax({
+      url: '/api/current-project',
+      headers: { 'Authorization': 'Bearer ' + token },
+      success: function(res) {
+        $('#output').append('<p>✅ API 调用成功</p><pre>' + JSON.stringify(res, null, 2) + '</pre>');
+      },
+      error: function(xhr) {
+        $('#output').append('<p>❌ API 调用失败：' + xhr.status + '</p>');
+      }
+    });
+  }
+});
+</script>
+</body>
+</html>

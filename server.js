@@ -127,7 +127,7 @@ app.get('/api/bugs/:id', (req, res) => {
 // 创建 Bug
 app.post('/api/bugs', (req, res) => {
   try {
-    const { title, description, priority, project_id, project_name } = req.body;
+    const { title, description, priority = 'P2', project_id, project_name } = req.body;
     
     if (!title || !description) {
       return res.status(400).json({ success: false, error: '标题和描述必填' });

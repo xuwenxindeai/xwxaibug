@@ -142,8 +142,14 @@
         <input type="hidden" id="editBugId">
         <div class="mb-3"><label class="form-label">标题 *</label><input type="text" class="form-control" id="bugTitle" required></div>
         <div class="mb-3"><label class="form-label">描述 *</label><textarea class="form-control" id="bugDescription" rows="4" required></textarea></div>
-        <div class="mb-3"><label class="form-label">项目</label><select class="form-select" id="bugProject"></select></div>
-        <div class="mb-3"><label class="form-label">优先级</label><select class="form-select" id="bugPriority"><option value="low">低</option><option value="medium" selected>中</option><option value="high">高</option><option value="critical">紧急</option></select></div>
+        <div class="mb-3">
+          <label class="form-label">所属项目</label>
+          <div class="form-control-plaintext text-muted" id="currentProjectDisplay">
+            <i class="bi bi-hourglass-split"></i> 加载中...
+          </div>
+          <select class="form-select" id="bugProject" style="display:none;"></select>
+        </div>
+        <div class="mb-3"><label class="form-label">优先级</label><select class="form-select" id="bugPriority"><option value="P3">P3 低</option><option value="P2" selected>P2 中</option><option value="P1">P1 高</option><option value="P0">P0 紧急</option></select></div>
         <div class="mb-3" id="editBugStatusDiv" style="display:none;"><label class="form-label">状态</label><select class="form-select" id="editBugStatus"><option value="pending">待处理</option><option value="analyzing">分析中</option><option value="ready_to_fix">待修复</option><option value="fixed">已修复</option><option value="error">错误</option></select></div>
       </div>
       <div class="modal-footer">

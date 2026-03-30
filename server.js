@@ -5,6 +5,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const cookieParser = require('cookie-parser');
 
 const db = require('./database');
 const scheduler = require('./scheduler');
@@ -29,6 +30,39 @@ app.use((req, res, next) => {
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+// 根路径重定向到登录页（在静态文件之前）
+app.get('/', (req, res) => {
+  res.redirect('/login.html');
+});
+
+// API 保护中间件（白名单）
+const publicApis = ['/auth/login']; // 相对于 /api/ 的路径
+app.use('/api/', (req, res, next) => {
+  // 白名单 API 不需要认证
+  if (publicApis.includes(req.path)) {
+    return next();
+  }
+  
+  // 检查 Token
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ success: false, error: '未授权，请先登录' });
+  }
+  
+  const token = authHeader.substring(7);
+  const result = auth.userOps.verifyToken(token);
+  
+  if (!result.valid) {
+    return res.status(401).json({ success: false, error: result.error });
+  }
+  
+  req.user = result.data;
+  next();
+});
+
+// 静态文件服务（放在最后）
 app.use(express.static(path.join(__dirname, 'public')));
 
 // 确保日志目录存在
@@ -39,11 +73,20 @@ if (!fs.existsSync(logsDir)) {
 
 // ==================== API 路由 ====================
 
-// 获取所有 Bug
-app.get('/api/bugs', (req, res) => {
+// 获取所有 Bug（支持按项目过滤）
+app.get('/api/bugs', auth.requireAuth, (req, res) => {
   try {
-    const bugs = db.bugs.getAll();
-    res.json({ success: true, data: bugs });
+    const { project_id } = req.query;
+    let query;
+    
+    if (project_id) {
+      query = db.db.prepare('SELECT * FROM bugs WHERE project_id = ? ORDER BY created_at DESC');
+      query = query.all(project_id);
+    } else {
+      query = db.db.prepare('SELECT * FROM bugs ORDER BY created_at DESC').all();
+    }
+    
+    res.json({ success: true, data: query });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -306,8 +349,44 @@ app.post('/api/bugs/:id/analyze', async (req, res) => {
   }
 });
 
+// 获取当前选中的项目（从 Cookie 或默认第一个）
+app.get('/api/current-project', auth.requireAuth, (req, res) => {
+  try {
+    const projects = db.db.prepare('SELECT * FROM projects WHERE enabled = 1').all();
+    if (projects.length === 0) {
+      return res.json({ success: true, data: null });
+    }
+    
+    // 从 Cookie 获取选中的项目 ID，或默认第一个
+    const selectedId = req.cookies?.selectedProjectId ? parseInt(req.cookies.selectedProjectId) : projects[0].id;
+    const selected = projects.find(p => p.id === selectedId) || projects[0];
+    
+    res.json({ success: true, data: selected, all: projects });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 切换当前项目
+app.post('/api/current-project', auth.requireAuth, (req, res) => {
+  try {
+    const { projectId } = req.body;
+    const project = db.db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+    
+    if (!project) {
+      return res.status(404).json({ success: false, error: '项目不存在' });
+    }
+    
+    // 设置 Cookie（有效期 30 天）
+    res.cookie('selectedProjectId', projectId, { maxAge: 30 * 24 * 60 * 60 * 1000, httpOnly: true });
+    res.json({ success: true, data: project });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // 获取项目列表
-app.get('/api/projects', (req, res) => {
+app.get('/api/projects', auth.requireAuth, (req, res) => {
   try {
     const projects = db.db.prepare('SELECT * FROM projects WHERE enabled = 1').all();
     res.json({ success: true, data: projects });
@@ -316,17 +395,21 @@ app.get('/api/projects', (req, res) => {
   }
 });
 
-// 获取统计信息
-app.get('/api/stats', (req, res) => {
+// 获取统计信息（支持按项目过滤）
+app.get('/api/stats', auth.requireAuth, (req, res) => {
   try {
+    const { project_id } = req.query;
+    const where = project_id ? `WHERE project_id = ${project_id}` : '';
+    
     const stats = {
-      total: db.db.prepare('SELECT COUNT(*) as count FROM bugs').get().count,
-      pending: db.db.prepare("SELECT COUNT(*) as count FROM bugs WHERE status = 'pending'").get().count,
-      analyzing: db.db.prepare("SELECT COUNT(*) as count FROM bugs WHERE status = 'analyzing'").get().count,
-      ready_to_fix: db.db.prepare("SELECT COUNT(*) as count FROM bugs WHERE status = 'ready_to_fix'").get().count,
-      fixed: db.db.prepare("SELECT COUNT(*) as count FROM bugs WHERE status = 'fixed'").get().count,
-      error: db.db.prepare("SELECT COUNT(*) as count FROM bugs WHERE status = 'error'").get().count
+      total: db.db.prepare(`SELECT COUNT(*) as count FROM bugs ${where}`).get().count,
+      pending: db.db.prepare(`SELECT COUNT(*) as count FROM bugs ${where ? where + ' AND' : 'WHERE'} status = 'pending'`).get().count,
+      analyzing: db.db.prepare(`SELECT COUNT(*) as count FROM bugs ${where ? where + ' AND' : 'WHERE'} status = 'analyzing'`).get().count,
+      ready_to_fix: db.db.prepare(`SELECT COUNT(*) as count FROM bugs ${where ? where + ' AND' : 'WHERE'} status = 'ready_to_fix'`).get().count,
+      fixed: db.db.prepare(`SELECT COUNT(*) as count FROM bugs ${where ? where + ' AND' : 'WHERE'} status = 'fixed'`).get().count,
+      error: db.db.prepare(`SELECT COUNT(*) as count FROM bugs ${where ? where + ' AND' : 'WHERE'} status = 'error'`).get().count
     };
+    
     res.json({ success: true, data: stats });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

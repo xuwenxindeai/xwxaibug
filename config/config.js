@@ -26,22 +26,22 @@ module.exports = {
   projects: [
     {
       id: 1,
-      name: '美术宝点评网',
-      path: '/Users/xwxgs/Desktop/AIBug/workspace/dianpingwang',
+      name: '点评网客户端',
+      path: '/Users/xwxgs/Desktop/meishubao/dianpingwang/flutter/msbdianping',
       branch: 'dev_1.2.0',
       type: 'flutter'
     },
     {
       id: 2,
-      name: '网校项目',
-      path: '/Users/xwxgs/Desktop/AIBug/workspace/netschool/NetSchool',
+      name: '网校 iOS',
+      path: '/Users/xwxgs/Desktop/meishubao/netschool',
       branch: 'dev',
       type: 'ios'
     },
     {
       id: 3,
       name: '网校服务端',
-      path: '/Users/xwxgs/Desktop/AIBug/workspace/NetSService/artgem-online-school-app',
+      path: '/Users/xwxgs/Desktop/meishubao/NetSService/artgem-online-school-app',
       branch: 'master',
       type: 'nodejs'
     }

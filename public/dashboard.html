@@ -54,6 +54,23 @@
   <div id="loadingOverlay"><div class="text-center text-white"><div class="spinner-border mb-3"></div><div id="loadingText">处理中...</div></div></div>
 
   <div class="main-container">
+    <!-- 项目选择器 -->
+    <div class="card mb-3">
+      <div class="card-body py-3">
+        <div class="row align-items-center">
+          <div class="col-auto">
+            <label class="col-form-label fw-bold"><i class="bi bi-folder-check"></i> 当前项目:</label>
+          </div>
+          <div class="col-auto">
+            <select class="form-select" id="currentProjectSelect" onchange="switchProject(this.value)" style="min-width: 200px; font-weight: 600;"></select>
+          </div>
+          <div class="col">
+            <span id="projectPathDisplay" class="text-muted small ms-2"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="user-menu">
       <span id="userDisplay"><i class="bi bi-person-circle"></i> <span id="username">-</span> <span id="userRole" class="role-badge"></span></span>
       <button class="btn btn-sm btn-outline-light ms-2" onclick="logout()"><i class="bi bi-box-arrow-right"></i> 退出</button>
@@ -154,7 +171,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-let currentUser = null, currentToken = null, projectsCache = [], currentBugId = null;
+let currentUser = null, currentToken = null, projectsCache = [], currentBugId = null, currentProjectId = null;
 
 $(document).ready(function() {
   currentToken = localStorage.getItem('aibug_token');
@@ -174,11 +191,64 @@ function initDashboard() {
   $('#username').text(currentUser.username);
   $('#userRole').text(getRoleText(currentUser.role)).removeClass().addClass('role-badge role-' + currentUser.role);
   if (currentUser.role === 'admin' || currentUser.role === 'developer') $('#btnProjectConfig').show();
-  loadProjects(); loadBugs(); loadStats();
+  loadCurrentProject(); // 先加载当前项目
+  loadBugs(); loadStats();
   setInterval(() => { loadBugs(); loadStats(); }, 30000);
 }
 
 function getRoleText(role) { return { 'admin': '管理员', 'developer': '开发', 'tester': '测试' }[role] || role; }
+
+function loadCurrentProject() {
+  $.ajax({
+    url: '/api/current-project',
+    headers: { 'Authorization': 'Bearer ' + currentToken },
+    success: function(res) {
+      if (res.success) {
+        currentProjectId = res.data?.id || null;
+        projectsCache = res.data ? [res.data, ...res.all.filter(p => p.id !== res.data.id)] : res.all;
+        
+        // 填充项目选择器
+        $('#currentProjectSelect').html('');
+        res.all.forEach(p => {
+          $('#currentProjectSelect').append(`<option value="${p.id}" ${p.id === currentProjectId ? 'selected' : ''}>${escapeHtml(p.name)}</option>`);
+        });
+        
+        // 显示路径
+        const current = res.data || (res.all.length > 0 ? res.all[0] : null);
+        if (current) {
+          const pathDisplay = current.path.length > 80 ? '...' + current.path.substring(current.path.length - 80) : current.path;
+          $('#projectPathDisplay').html(`<i class="bi bi-folder2-open"></i> ${escapeHtml(pathDisplay)} | <i class="bi bi-git"></i> 分支：<strong class="text-primary">${escapeHtml(current.branch || 'master')}</strong>`);
+        }
+        
+        renderProjectStatus();
+      }
+    }
+  });
+}
+
+function switchProject(projectId) {
+  if (!projectId || projectId === currentProjectId) return;
+  showLoading('切换项目...');
+  $.ajax({
+    url: '/api/current-project',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'Authorization': 'Bearer ' + currentToken },
+    data: JSON.stringify({ projectId }),
+    success: function(res) {
+      hideLoading();
+      if (res.success) {
+        currentProjectId = parseInt(projectId);
+        loadCurrentProject();
+        loadBugs();
+        loadStats();
+      } else {
+        alert('切换失败：' + res.error);
+      }
+    },
+    error: function() { hideLoading(); alert('切换失败'); }
+  });
+}
 
 function loadProjects() {
   $.ajax({
@@ -188,7 +258,7 @@ function loadProjects() {
       if (res.success) {
         projectsCache = res.data;
         renderProjectStatus();
-        // 填充项目选择器
+        // 填充项目选择器（用于 Bug 编辑）
         $('#bugProject').html('<option value="">选择项目</option>');
         projectsCache.forEach(p => {
           $('#bugProject').append(`<option value="${p.id}">${p.name}</option>`);
@@ -220,7 +290,7 @@ function renderProjectStatus() {
 
 function loadBugs() {
   $.ajax({
-    url: '/api/bugs',
+    url: currentProjectId ? '/api/bugs?project_id=' + currentProjectId : '/api/bugs',
     headers: { 'Authorization': 'Bearer ' + currentToken },
     success: function(res) { if (res.success) renderBugTable(res.data); }
   });
@@ -263,7 +333,7 @@ function getProjectName(projectId) {
 
 function loadStats() {
   $.ajax({
-    url: '/api/stats',
+    url: currentProjectId ? '/api/stats?project_id=' + currentProjectId : '/api/stats',
     headers: { 'Authorization': 'Bearer ' + currentToken },
     success: function(res) {
       if (res.success) {

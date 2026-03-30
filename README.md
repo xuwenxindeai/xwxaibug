@@ -1,214 +1,282 @@
-# AIBug 自动修复平台 🤖
+# 🤖 AIBug 自动修复平台
 
-AI 驱动的智能 Bug 分析与自动修复系统
+> AI 驱动的智能 Bug 分析与自动修复系统
 
-## 架构
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D16-green.svg)](https://nodejs.org/)
+[![Express](https://img.shields.io/badge/express-4.18-green.svg)](https://expressjs.com/)
 
-```
-前端 Bug 表格 ←→ 后端轮询服务 ←→ OpenClaw ←→ 项目源码
-```
+---
 
-## 功能特性
+## ✨ 特性
 
-✅ **前端网页表格** - 测试人员可提交 Bug（标题、描述、状态）
-✅ **后端定时轮询** - 自动扫描未处理的 Bug
-✅ **OpenClaw 集成** - 分析项目代码、定位错误
-✅ **AI 自动分析** - 生成一句话分析总结
-✅ **AI 自动修复** - 生成修复代码并应用到源码
-✅ **结果回填** - 分析结果自动回填到 Bug 表格
-✅ **一键修复** - 开发人员可点击查看详情并应用修复
-✅ **自动备份** - 修复前自动创建备份文件
+- 🤖 **AI 自动分析** - 智能分析 Bug 描述，自动定位问题代码
+- 🎯 **精准定位** - 自动识别问题文件和行号
+- 🔧 **自动修复** - 生成修复方案，一键应用修复
+- 📊 **项目管理** - 支持多项目管理，按项目维度查看 Bug
+- 👥 **用户系统** - 三种角色权限（管理员/开发/测试）
+- 📱 **响应式设计** - 支持 PC 和移动端访问
+- 🔒 **安全可靠** - JWT 认证，权限控制
 
-## 技术栈
+---
 
-- **前端**: HTML + Bootstrap 5 + jQuery
-- **后端**: Node.js + Express
-- **数据库**: SQLite (better-sqlite3)
-- **定时任务**: node-schedule
-- **AI**: OpenClaw
+## 🚀 快速开始
 
-## 快速开始
+### 环境要求
 
-### 1. 安装依赖
+- Node.js >= 16
+- npm >= 8
+- Git
+
+### 安装步骤
 
 ```bash
-cd ~/Desktop/AIBug
+# 1. 克隆项目
+git clone https://github.com/YOUR_USERNAME/aibug.git
+cd aibug
+
+# 2. 安装依赖
 npm install
+
+# 3. 配置项目（可选）
+cp config/config.example.js config/config.js
+# 编辑 config/config.js 修改项目路径等配置
+
+# 4. 启动服务
+npm start
+
+# 5. 访问系统
+# 浏览器打开：http://localhost:3000
 ```
 
-### 2. 配置项目
+### 默认账户
 
-编辑 `config/config.js` 文件，配置：
+| 角色 | 用户名 | 密码 | 权限 |
+|------|--------|------|------|
+| 👨‍💼 管理员 | admin | admin123 | 所有权限 |
+| 👨‍💻 开发 | developer | dev123 | 项目配置、Git 操作 |
+| 🧪 测试 | tester | test123 | 提交和查看 Bug |
 
-- 服务器端口（默认 3000）
-- 项目源码路径
-- OpenClaw workspace 路径
-- 轮询间隔
+⚠️ **首次使用请修改默认密码！**
 
-### 3. 启动服务
+---
+
+## 📖 功能说明
+
+### 1. Bug 管理
+
+- **提交 Bug** - 填写标题、描述、优先级
+- **自动分析** - AI 分析 Bug，定位代码位置
+- **修复方案** - 生成修复代码，显示代码对比
+- **一键修复** - 确认后自动应用修复
+- **状态跟踪** - 待处理 → 分析中 → 待修复 → 已修复
+
+### 2. 项目管理
+
+- **多项目支持** - 支持父项目/子项目结构
+- **项目切换** - 顶部选择器快速切换项目
+- **Git 集成** - 显示当前分支、最近提交
+- **分支管理** - 查看和切换 Git 分支
+- **代码拉取** - 一键拉取最新代码
+
+### 3. 用户权限
+
+- **管理员** - 所有权限，包括用户管理
+- **开发者** - 项目配置、Git 操作、Bug 修复
+- **测试人员** - 提交 Bug、查看分析结果
+
+---
+
+## 📁 项目结构
+
+```
+aibug/
+├── config/
+│   └── config.js          # 配置文件
+├── public/
+│   ├── index.html         # 登录页面
+│   ├── dashboard.html     # 主仪表板
+│   └── css/               # 样式文件
+├── skills/                # AI 技能（可选）
+├── auth.js                # 用户认证模块
+├── database.js            # 数据库操作
+├── git-client.js          # Git 操作模块
+├── openclaw-client.js     # AI 分析模块
+├── scheduler.js           # 定时任务
+├── server.js              # 主服务器
+├── package.json           # 依赖配置
+└── README.md              # 本文件
+```
+
+---
+
+## ⚙️ 配置说明
+
+### 项目配置 (config/config.js)
+
+```javascript
+module.exports = {
+  // 服务器配置
+  server: {
+    port: 3000,           // 服务端口
+    host: '0.0.0.0'       // 监听地址
+  },
+
+  // OpenClaw 配置
+  openclaw: {
+    pollInterval: 5,      // 轮询间隔（分钟）
+    autoFix: false        // 是否自动修复
+  },
+
+  // 项目源码配置
+  projects: [
+    {
+      id: 1,
+      name: '示例项目',
+      display_name: '示例项目',
+      path: '/path/to/your/project',
+      branch: 'main',
+      type: 'flutter'
+    }
+  ]
+};
+```
+
+### 环境变量（可选）
 
 ```bash
-npm start
+# .env 文件
+PORT=3000
+JWT_SECRET=your-secret-key
 ```
 
-### 4. 访问平台
+---
 
-打开浏览器访问：http://localhost:3000
+## 🔌 API 接口
 
-## 项目结构
+### 认证相关
 
-```
-AIBug/
-├── package.json          # 依赖配置
-├── server.js            # Express 主服务器
-├── scheduler.js         # 定时轮询服务
-├── openclaw-client.js   # OpenClaw 客户端封装
-├── database.js          # SQLite 数据库操作
-├── config/
-│   └── config.js        # 配置文件
-├── public/
-│   ├── index.html       # 前端页面
-│   ├── css/             # 样式文件
-│   └── js/              # 脚本文件
-├── logs/                # 日志目录
-└── data/
-    └── aibug.db         # SQLite 数据库（自动创建）
-```
-
-## API 接口
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/auth/login` | 用户登录 |
+| POST | `/api/auth/logout` | 用户登出 |
+| GET | `/api/auth/me` | 获取当前用户 |
 
 ### Bug 管理
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | /api/bugs | 获取所有 Bug |
-| GET | /api/bugs/:id | 获取单个 Bug 详情 |
-| POST | /api/bugs | 创建新 Bug |
-| PUT | /api/bugs/:id/status | 更新 Bug 状态 |
-| POST | /api/bugs/:id/analyze | 手动触发分析 |
-| POST | /api/bugs/:id/fix | 应用修复 |
+| GET | `/api/bugs` | 获取 Bug 列表 |
+| GET | `/api/bugs/:id` | 获取 Bug 详情 |
+| POST | `/api/bugs` | 创建 Bug |
+| PUT | `/api/bugs/:id` | 更新 Bug |
+| DELETE | `/api/bugs/:id` | 删除 Bug |
+| POST | `/api/bugs/:id/analyze` | 分析 Bug |
+| POST | `/api/bugs/:id/fix` | 应用修复 |
 
-### 其他
+### 项目管理
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | /api/projects | 获取项目列表 |
-| GET | /api/stats | 获取统计信息 |
-| POST | /api/poll | 手动触发轮询 |
+| GET | `/api/current-project` | 获取当前项目 |
+| POST | `/api/current-project` | 切换项目 |
+| GET | `/api/projects/:id/branches` | 获取分支列表 |
+| POST | `/api/projects/:id/checkout` | 切换分支 |
+| POST | `/api/projects/:id/pull` | 拉取代码 |
 
-## 使用流程
+---
 
-### 测试人员
+## 🛠️ 开发指南
 
-1. 访问 http://localhost:3000
-2. 点击"提交 Bug"
-3. 填写标题、描述、选择项目和优先级
-4. 提交后等待 AI 分析
-
-### AI 自动处理
-
-1. 轮询服务检测到新 Bug
-2. 调用 OpenClaw 分析代码
-3. 定位错误位置（文件 + 行号）
-4. 生成修复代码
-5. 自动应用修复（如启用）
-
-### 开发人员
-
-1. 查看 Bug 列表
-2. 点击 Bug 查看详情和 AI 分析
-3. 确认修复方案
-4. 点击"一键修复"应用（如未自动修复）
-
-## 配置说明
-
-### config/config.js
-
-```javascript
-{
-  server: {
-    port: 3000,        // 服务器端口
-    host: 'localhost'
-  },
-  
-  openclaw: {
-    workspacePath: '/Users/xwxgs/.openclaw/workspace',
-    pollInterval: 5,   // 轮询间隔（分钟）
-    autoFix: true      // 是否自动修复
-  },
-  
-  projects: [
-    {
-      id: 1,
-      name: '项目名称',
-      path: '/path/to/project',
-      branch: 'dev',
-      type: 'flutter'
-    }
-  ]
-}
-```
-
-## 状态说明
-
-| 状态 | 说明 |
-|------|------|
-| pending | 待处理 - 新提交的 Bug |
-| analyzing | 分析中 - AI 正在分析代码 |
-| ready_to_fix | 待修复 - 已生成修复方案 |
-| fixed | 已修复 - 修复已应用 |
-| error | 错误 - 分析或修复失败 |
-
-## 注意事项
-
-⚠️ **自动修复风险**: 启用 `autoFix: true` 后，系统会自动修改源码文件
-- 系统会自动创建备份文件（`.backup.时间戳`）
-- 建议在测试环境先验证
-- 生产环境建议手动确认修复方案
-
-⚠️ **OpenClaw 集成**: 需要确保 OpenClaw 正常运行
-- 检查 OpenClaw Gateway 状态
-- 确保有足够的权限访问项目源码
-
-## 日志查看
-
-日志文件位于 `logs/` 目录，可通过控制台查看实时日志：
+### 本地开发
 
 ```bash
-# 查看最新日志
-tail -f logs/*.log
+# 安装依赖
+npm install
 
-# 或直接在启动时查看
+# 启动开发服务器（自动重启）
+npm run dev
+
+# 生产环境启动
 npm start
 ```
 
-## 开发模式
+### 添加新项目
 
-使用 nodemon 自动重启：
+编辑 `config/config.js`，在 `projects` 数组中添加：
 
-```bash
-npm run dev
+```javascript
+{
+  id: 4,
+  name: '新项目名称',
+  display_name: '新项目名称',
+  path: '/path/to/project',
+  branch: 'main',
+  type: 'flutter'  // flutter/ios/nodejs 等
+}
 ```
 
-## 故障排查
+### 自定义 AI 分析
 
-### 服务无法启动
+修改 `openclaw-client.js` 中的 `analyzeBug()` 和 `generateFix()` 函数。
 
-1. 检查端口是否被占用
-2. 检查 Node.js 版本（建议 16+）
-3. 重新安装依赖：`npm install`
+---
 
-### OpenClaw 调用失败
+## 🤝 贡献指南
 
-1. 检查 `config.js` 中的 workspace 路径
-2. 确保 OpenClaw Gateway 正在运行
-3. 检查项目源码路径是否正确
+欢迎提交 Issue 和 Pull Request！
 
-### 数据库错误
+### 提交 Bug
 
-1. 删除 `data/aibug.db` 重新创建
-2. 检查文件权限
+1. 搜索是否已有相同 Issue
+2. 使用 Bug 报告模板
+3. 提供详细复现步骤
 
-## License
+### 提交代码
 
-MIT
+1. Fork 项目
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
+
+### 代码规范
+
+- 使用 2 空格缩进
+- 函数名使用驼峰命名
+- Commit message 清晰明了
+
+---
+
+## 📄 许可证
+
+本项目采用 [MIT 许可证](LICENSE)
+
+---
+
+## 📞 联系方式
+
+- **作者**: 文鑫
+- **邮箱**: 407755824@qq.com
+- **项目**: AIBug 自动修复平台
+
+---
+
+## 🙏 致谢
+
+感谢以下开源项目：
+
+- [Express](https://expressjs.com/) - Web 框架
+- [Bootstrap](https://getbootstrap.com/) - UI 框架
+- [better-sqlite3](https://github.com/JoshuaWise/better-sqlite3) - 数据库
+- [jsonwebtoken](https://github.com/auth0/node-jsonwebtoken) - JWT 认证
+
+---
+
+<div align="center">
+
+**如果这个项目对你有帮助，请给一个 ⭐ Star！**
+
+Made with ❤️ by 文鑫
+
+</div>

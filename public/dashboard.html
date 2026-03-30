@@ -237,6 +237,8 @@ function loadCurrentProject() {
         currentProjectId = res.data?.id || 1; // 父项目 ID
         console.log('currentProjectId:', currentProjectId);
         projectsCache = res.all.flatMap(g => g.children.map(c => ({...c, group_id: g.id, group_name: g.display_name})));
+        // 保存父项目列表用于 Bug 提交时显示
+        window.projectGroups = res.all;
         console.log('projectsCache:', projectsCache);
         
         // 填充项目选择器（只显示父项目）
@@ -545,14 +547,15 @@ function showAddBugModal() {
   $('#bugDescription').val('');
   $('#bugPriority').val('P2');
   
-  // 默认使用当前父项目下的第一个子项目
-  const currentGroup = projectsCache.filter(p => p.group_id === currentProjectId);
-  if (currentGroup.length > 0) {
-    const firstProject = currentGroup[0];
-    $('#bugProject').val(firstProject.id);
-    $('#currentProjectDisplay').html(`<i class="bi bi-folder-check"></i> ${escapeHtml(firstProject.name)} (${escapeHtml(firstProject.path.substring(firstProject.path.lastIndexOf('/') + 1))})`);
+  // 获取当前父项目信息
+  const currentGroup = window.projectGroups ? window.projectGroups.find(g => g.id === currentProjectId) : null;
+  if (currentGroup) {
+    // 使用第一个子项目的 ID，但显示父项目名称
+    const firstChild = currentGroup.children[0];
+    $('#bugProject').val(firstChild.id);
+    $('#currentProjectDisplay').html(`<i class="bi bi-folder-check"></i> ${escapeHtml(currentGroup.display_name)}`);
   } else {
-    $('#currentProjectDisplay').html('<i class="bi bi-exclamation-triangle"></i> 当前项目下无可用子项目');
+    $('#currentProjectDisplay').html('<i class="bi bi-exclamation-triangle text-danger"></i> 当前无可用项目');
   }
   
   $('#editBugStatusDiv').hide();

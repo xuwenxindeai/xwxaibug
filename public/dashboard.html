@@ -406,7 +406,7 @@ function renderBugTable(bugs) {
     const statusText = { 'pending': '待处理', 'analyzing': '分析中', 'ready_to_fix': '待修复', 'fixed': '已修复', 'error': '错误' }[bug.status] || bug.status;
     const priorityText = { 'P0': 'P0 紧急', 'P1': 'P1 高', 'P2': 'P2 中', 'P3': 'P3 低' }[bug.priority] || bug.priority;
     const priorityClass = { 'P0': 'text-danger fw-bold', 'P1': 'text-danger', 'P2': 'text-warning', 'P3': 'text-muted' }[bug.priority] || '';
-    const lastModified = bug.updated_at ? new Date(bug.updated_at).toLocaleString('zh-CN') : '-';
+    const lastModified = bug.updated_at ? new Date(bug.updated_at + 'Z').toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '-';
     html += `<tr>
       <td><strong>#${bug.id}</strong></td>
       <td><a href="#" onclick="editBug(${bug.id});return false;">${escapeHtml(bug.title)}</a></td>

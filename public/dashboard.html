@@ -188,9 +188,11 @@ $(document).ready(function() {
 });
 
 function initDashboard() {
+  console.log('🚀 initDashboard 被调用');
   $('#username').text(currentUser.username);
   $('#userRole').text(getRoleText(currentUser.role)).removeClass().addClass('role-badge role-' + currentUser.role);
   if (currentUser.role === 'admin' || currentUser.role === 'developer') $('#btnProjectConfig').show();
+  console.log('📡 调用 loadCurrentProject');
   loadCurrentProject(); // 先加载当前项目
   loadBugs(); loadStats();
   setInterval(() => { loadBugs(); loadStats(); }, 30000);
@@ -199,14 +201,18 @@ function initDashboard() {
 function getRoleText(role) { return { 'admin': '管理员', 'developer': '开发', 'tester': '测试' }[role] || role; }
 
 function loadCurrentProject() {
+  console.log('📡 loadCurrentProject 开始执行，currentToken:', currentToken ? '存在' : '无');
   $.ajax({
     url: '/api/current-project',
     headers: { 'Authorization': 'Bearer ' + currentToken },
     success: function(res) {
+      console.log('✅ API 返回:', res);
       hideLoading(); // 隐藏加载提示
       if (res.success) {
         currentProjectId = res.data?.id || 1; // 父项目 ID
+        console.log('currentProjectId:', currentProjectId);
         projectsCache = res.all.flatMap(g => g.children.map(c => ({...c, group_id: g.id, group_name: g.display_name})));
+        console.log('projectsCache:', projectsCache);
         
         // 填充项目选择器（只显示父项目）
         $('#currentProjectSelect').html('');
@@ -224,12 +230,14 @@ function loadCurrentProject() {
           $('#projectPathDisplay').html(paths);
         }
         
+        console.log('调用 renderProjectStatus');
         renderProjectStatus();
       }
     },
-    error: function() {
+    error: function(xhr, status, error) {
+      console.error('❌ API 调用失败:', status, error);
       hideLoading();
-      alert('加载项目失败');
+      alert('加载项目失败：' + error);
     }
   });
 }
@@ -649,8 +657,8 @@ function showProjectConfig() {
       <div class="mt-2 small text-muted"><i class="bi bi-folder2-open"></i> ${escapeHtml(p.path)}</div>
     </div>`;
   });
-  $(#projectConfigBody).html(html);
-  $(#projectConfigModal).modal('show');
+  $('#projectConfigBody').html(html);
+  $('#projectConfigModal').modal('show');
   hideLoading();
 }
 

@@ -28,7 +28,7 @@ module.exports = {
       id: 1,
       name: '点评网客户端',
       display_name: '点评网项目',
-      path: '/Users/xwxgs/Desktop/meishubao/dianpingwang/flutter/msbdianping',
+      path: '/Users/xwxgs/Desktop/AIBug/workspace/dianpingwang',
       branch: 'dev_1.2.0',
       type: 'flutter',
       parent_id: null
@@ -37,7 +37,7 @@ module.exports = {
       id: 2,
       name: '网校 iOS',
       display_name: '网校项目',
-      path: '/Users/xwxgs/Desktop/meishubao/netschool',
+      path: '/Users/xwxgs/Desktop/AIBug/workspace/netschool',
       branch: 'dev',
       type: 'ios',
       parent_id: null
@@ -46,7 +46,7 @@ module.exports = {
       id: 3,
       name: '网校服务端',
       display_name: '网校项目',
-      path: '/Users/xwxgs/Desktop/meishubao/NetSService/artgem-online-school-app',
+      path: '/Users/xwxgs/Desktop/AIBug/workspace/NetSService/artgem-online-school-app',
       branch: 'master',
       type: 'nodejs',
       parent_id: 2

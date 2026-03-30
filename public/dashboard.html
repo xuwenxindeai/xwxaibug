@@ -393,7 +393,7 @@ function renderBugTable(bugs) {
       <td><a href="#" onclick="editBug(${bug.id});return false;">${escapeHtml(bug.title)}</a></td>
       <td>${getProjectName(bug.project_id)}</td>
       <td class="${priorityClass}">${bug.priority}</td>
-      <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+      <td><span class="status-badge ${statusClass}" style="cursor:pointer;" onclick="changeBugStatus(${bug.id}, '${bug.status}')" title="点击修改状态">${statusText}</span></td>
       <td>${bug.file_path ? bug.file_path.split('/').pop() + ':' + bug.line_number : '-'}</td>
       <td><small class="text-muted">${lastModified}</small></td>
       <td>
@@ -410,6 +410,51 @@ function renderBugTable(bugs) {
 function getProjectName(projectId) {
   const p = projectsCache.find(x => x.id == projectId);
   return p ? escapeHtml(p.name) : '<span class="text-muted">-</span>';
+}
+
+
+// 修改 Bug 状态
+function changeBugStatus(bugId, currentStatus) {
+  const statuses = [
+    { value: 'pending', text: '待处理' },
+    { value: 'analyzing', text: '分析中' },
+    { value: 'ready_to_fix', text: '待修复' },
+    { value: 'fixed', text: '已修复' },
+    { value: 'error', text: '错误' }
+  ];
+  
+  let options = '';
+  statuses.forEach(s => {
+    const selected = s.value === currentStatus ? 'selected' : '';
+    options += `<option value="${s.value}" ${selected}>${s.text}</option>`;
+  });
+  
+  const newStatus = prompt(`选择新状态:\n${options}\n\n请输入状态值 (pending/analyzing/ready_to_fix/fixed/error):`, currentStatus);
+  
+  if (newStatus && newStatus !== currentStatus && statuses.find(s => s.value === newStatus)) {
+    showLoading('更新状态...');
+    $.ajax({
+      url: '/api/bugs/' + bugId + '/status',
+      method: 'PUT',
+      contentType: 'application/json',
+      headers: { 'Authorization': 'Bearer ' + currentToken },
+      data: JSON.stringify({ status: newStatus }),
+      success: function(res) {
+        hideLoading();
+        if (res.success) {
+          alert('✅ 状态已更新');
+          loadBugs();
+          loadStats();
+        } else {
+          alert('更新失败：' + res.error);
+        }
+      },
+      error: function() {
+        hideLoading();
+        alert('更新失败');
+      }
+    });
+  }
 }
 
 function loadStats() {

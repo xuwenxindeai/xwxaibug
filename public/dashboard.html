@@ -543,7 +543,17 @@ function showAddBugModal() {
   $('#bugTitle').val('');
   $('#bugDescription').val('');
   $('#bugPriority').val('medium');
-  $('#bugProject').val('');
+  
+  // 默认使用当前父项目下的第一个子项目
+  const currentGroup = projectsCache.filter(p => p.group_id === currentProjectId);
+  if (currentGroup.length > 0) {
+    const firstProject = currentGroup[0];
+    $('#bugProject').val(firstProject.id);
+    $('#currentProjectDisplay').html(`<i class="bi bi-folder-check"></i> ${escapeHtml(firstProject.name)} (${escapeHtml(firstProject.path.substring(firstProject.path.lastIndexOf('/') + 1))})`);
+  } else {
+    $('#currentProjectDisplay').html('<i class="bi bi-exclamation-triangle"></i> 当前项目下无可用子项目');
+  }
+  
   $('#editBugStatusDiv').hide();
   $('#btnDeleteBug').hide();
   $('#bugModal').modal('show');

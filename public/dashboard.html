@@ -273,14 +273,27 @@ function loadProjects() {
 }
 
 function renderProjectStatus() {
-  if (projectsCache.length === 0) { $('#projectStatusContent').html('<div class="text-muted">暂无项目</div>'); return; }
+  if (!projectsCache || projectsCache.length === 0) { 
+    $('#projectStatusContent').html('<div class="text-muted">暂无项目</div>'); 
+    return; 
+  }
+  
+  // 只显示当前父项目下的子项目
+  const currentGroup = projectsCache.filter(p => p.group_id === currentProjectId);
+  
+  if (currentGroup.length === 0) {
+    $('#projectStatusContent').html('<div class="text-muted">该项目下无子项目</div>');
+    return;
+  }
+  
   let html = '<div class="row">';
-  projectsCache.forEach(p => {
+  currentGroup.forEach(p => {
     const pathDisplay = p.path.length > 60 ? '...' + p.path.substring(p.path.length - 60) : p.path;
+    const icon = p.type === 'ios' ? 'apple' : p.type === 'nodejs' ? 'file-code' : 'braces';
     html += `<div class="col-md-6"><div class="project-item">
       <div class="d-flex justify-content-between align-items-center">
         <div>
-          <strong><i class="bi bi-folder"></i> ${escapeHtml(p.name)}</strong>
+          <strong><i class="bi bi-${icon}"></i> ${escapeHtml(p.name)}</strong>
           <div class="text-muted small mt-1"><i class="bi bi-git"></i> 分支：<span class="text-primary fw-bold">${escapeHtml(p.branch || 'master')}</span></div>
           <div class="text-muted small"><i class="bi bi-folder2-open"></i> ${escapeHtml(pathDisplay)}</div>
         </div>
@@ -611,11 +624,13 @@ function pullCode(projectId) {
 
 function showProjectConfig() {
   showLoading('加载配置...');
+  const currentGroup = projectsCache.filter(p => p.group_id === currentProjectId);
   let html = '';
-  projectsCache.forEach(p => {
+  currentGroup.forEach(p => {
+    const icon = p.type === 'ios' ? 'apple' : p.type === 'nodejs' ? 'file-code' : 'braces';
     html += `<div class="project-item">
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <strong><i class="bi bi-folder"></i> ${escapeHtml(p.name)}</strong>
+        <strong><i class="bi bi-${icon}"></i> ${escapeHtml(p.name)}</strong>
         <button class="btn btn-sm btn-outline-primary" onclick="loadBranches(${p.id})"><i class="bi bi-git"></i> 获取分支</button>
       </div>
       <div class="row g-2 align-items-center">
@@ -630,8 +645,8 @@ function showProjectConfig() {
       <div class="mt-2 small text-muted"><i class="bi bi-folder2-open"></i> ${escapeHtml(p.path)}</div>
     </div>`;
   });
-  $('#projectConfigBody').html(html);
-  $('#projectConfigModal').modal('show');
+  $(#projectConfigBody).html(html);
+  $(#projectConfigModal).modal('show');
   hideLoading();
 }
 

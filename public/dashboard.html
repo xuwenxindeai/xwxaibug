@@ -48,6 +48,10 @@
     .log-item { border-bottom: 1px solid #e9ecef; padding: 10px 0; }
     .log-time { color: #6c757d; font-size: 0.85rem; }
     .log-action { font-weight: 600; color: #667eea; }
+    .commit-item { border-left: 3px solid #667eea; padding-left: 15px; margin: 8px 0; }
+    .commit-hash { font-family: monospace; background: #e9ecef; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; color: #495057; }
+    .commit-time { color: #6c757d; font-size: 0.75rem; margin-left: 8px; }
+    .commit-message { margin-top: 4px; color: #495057; }
   </style>
 </head>
 <body>
@@ -302,19 +306,54 @@ function renderProjectStatus() {
   currentGroup.forEach(p => {
     const pathDisplay = p.path.length > 60 ? '...' + p.path.substring(p.path.length - 60) : p.path;
     const icon = p.type === 'ios' ? 'apple' : p.type === 'nodejs' ? 'file-code' : 'braces';
+    
+    // 加载 Git 提交记录
+    const commitsHtml = `<div id="commits-${p.id}" class="mt-2"><small class="text-muted"><i class="bi bi-hourglass-split"></i> 加载提交记录...</small></div>`;
+    
     html += `<div class="col-md-6"><div class="project-item">
       <div class="d-flex justify-content-between align-items-center">
         <div>
           <strong><i class="bi bi-${icon}"></i> ${escapeHtml(p.name)}</strong>
           <div class="text-muted small mt-1"><i class="bi bi-git"></i> 分支：<span class="text-primary fw-bold">${escapeHtml(p.branch || 'master')}</span></div>
           <div class="text-muted small"><i class="bi bi-folder2-open"></i> ${escapeHtml(pathDisplay)}</div>
+          ${commitsHtml}
         </div>
         ${(currentUser.role === 'admin' || currentUser.role === 'developer') ? `<button class="btn btn-sm btn-outline-primary" onclick="pullCode(${p.id})"><i class="bi bi-download"></i> 拉取</button>` : ''}
       </div>
     </div></div>`;
+    
+    // 加载提交记录
+    loadRecentCommits(p.id);
   });
   html += '</div>';
   $('#projectStatusContent').html(html);
+}
+
+// 加载最近提交记录
+function loadRecentCommits(projectId) {
+  $.ajax({
+    url: '/api/projects/' + projectId + '/status',
+    headers: { 'Authorization': 'Bearer ' + currentToken },
+    success: function(res) {
+      if (res.success && res.data.commits && res.data.commits.length > 0) {
+        let commitsHtml = '<div class="mt-2">';
+        res.data.commits.forEach(commit => {
+          const time = new Date(commit.time).toLocaleString('zh-CN');
+          commitsHtml += `<div class="commit-item">
+            <div><span class="commit-hash">${escapeHtml(commit.hash)}</span> <span class="commit-time">${escapeHtml(time)}</span></div>
+            <div class="commit-message small text-muted">${escapeHtml(commit.message)}</div>
+          </div>`;
+        });
+        commitsHtml += '</div>';
+        $('#commits-' + projectId).html(commitsHtml);
+      } else {
+        $('#commits-' + projectId).html('<div class="mt-2 small text-muted">无提交记录</div>');
+      }
+    },
+    error: function() {
+      $('#commits-' + projectId).html('<div class="mt-2 small text-danger">加载失败</div>');
+    }
+  });
 }
 
 function loadBugs() {
@@ -662,18 +701,47 @@ function showProjectConfig() {
         <span class="text-muted"><i class="bi bi-git"></i> 当前分支:</span>
         <strong class="text-primary ms-1" id="git-branch-${p.id}"><i class="bi bi-hourglass-split"></i> 获取中...</strong>
       </div>
+      <div id="commits-config-${p.id}" class="mt-2"></div>
       <div class="mt-1 small text-muted"><i class="bi bi-folder2-open"></i> ${escapeHtml(p.path)}</div>
     </div>`;
   });
   $('#projectConfigBody').html(html);
   $('#projectConfigModal').modal('show');
   
-  // 自动加载每个项目的分支列表
+  // 自动加载每个项目的分支列表和提交记录
   currentGroup.forEach(p => {
     loadBranches(p.id);
+    loadConfigCommits(p.id);
   });
   
   hideLoading();
+}
+
+// 加载配置页面的提交记录
+function loadConfigCommits(projectId) {
+  $.ajax({
+    url: '/api/projects/' + projectId + '/status',
+    headers: { 'Authorization': 'Bearer ' + currentToken },
+    success: function(res) {
+      if (res.success && res.data.commits && res.data.commits.length > 0) {
+        let commitsHtml = '<div class="mt-2"><strong class="small text-muted"><i class="bi bi-clock-history"></i> 最近提交:</strong>';
+        res.data.commits.forEach(commit => {
+          const time = new Date(commit.time).toLocaleString('zh-CN');
+          commitsHtml += `<div class="commit-item">
+            <div><span class="commit-hash">${escapeHtml(commit.hash)}</span> <span class="commit-time">${escapeHtml(time)}</span></div>
+            <div class="commit-message small text-muted">${escapeHtml(commit.message)}</div>
+          </div>`;
+        });
+        commitsHtml += '</div>';
+        $('#commits-config-' + projectId).html(commitsHtml);
+      } else {
+        $('#commits-config-' + projectId).html('<div class="mt-2 small text-muted">无提交记录</div>');
+      }
+    },
+    error: function() {
+      $('#commits-config-' + projectId).html('<div class="mt-2 small text-danger">加载失败</div>');
+    }
+  });
 }
 
 // 加载分支列表（自动调用）

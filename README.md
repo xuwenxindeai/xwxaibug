@@ -38,7 +38,7 @@ cd aibug
 # 2. 安装依赖
 npm install
 
-# 3. 配置项目（可选）
+# 3. 配置项目
 cp config/config.example.js config/config.js
 # 编辑 config/config.js 修改项目路径等配置
 
@@ -48,6 +48,13 @@ npm start
 # 5. 访问系统
 # 浏览器打开：http://localhost:3000
 ```
+
+### ⚠️ 安全提示
+
+1. **修改默认密码** - 首次登录后请立即修改默认账户密码
+2. **保护配置文件** - `config/config.js` 包含本地路径，不要提交到 Git
+3. **生产环境** - 使用强密码，配置 HTTPS，限制访问 IP
+4. **数据库备份** - 定期备份 `data/aibug.db` 文件
 
 ### 默认账户
 

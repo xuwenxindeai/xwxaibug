@@ -154,6 +154,24 @@
     </div></div>
   </div>
 
+  
+  <!-- 修改状态模态框 -->
+  <div class="modal fade" id="statusChangeModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-pencil"></i> 修改状态</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+          <button type="button" class="btn btn-primary" onclick="confirmStatusChange()">确定</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Bug 详情模态框 -->
   <div class="modal fade" id="bugDetailModal" tabindex="-1">
     <div class="modal-dialog modal-lg"><div class="modal-content">
@@ -429,32 +447,49 @@ function changeBugStatus(bugId, currentStatus) {
     options += `<option value="${s.value}" ${selected}>${s.text}</option>`;
   });
   
-  const newStatus = prompt(`选择新状态:\n${options}\n\n请输入状态值 (pending/analyzing/ready_to_fix/fixed/error):`, currentStatus);
+  const html = `
+    <div class="mb-3">
+      <label class="form-label">选择新状态:</label>
+      <select class="form-select" id="changeStatusSelect">
+        ${options}
+      </select>
+    </div>
+  `;
   
-  if (newStatus && newStatus !== currentStatus && statuses.find(s => s.value === newStatus)) {
-    showLoading('更新状态...');
-    $.ajax({
-      url: '/api/bugs/' + bugId + '/status',
-      method: 'PUT',
-      contentType: 'application/json',
-      headers: { 'Authorization': 'Bearer ' + currentToken },
-      data: JSON.stringify({ status: newStatus }),
-      success: function(res) {
-        hideLoading();
-        if (res.success) {
-          alert('✅ 状态已更新');
-          loadBugs();
-          loadStats();
-        } else {
-          alert('更新失败：' + res.error);
-        }
-      },
-      error: function() {
-        hideLoading();
-        alert('更新失败');
+  // 使用 Bootstrap 模态框
+  $('#statusChangeModal .modal-body').html(html);
+  $('#statusChangeModal').data('bugId', bugId);
+  $('#statusChangeModal').modal('show');
+}
+
+// 确认修改状态
+function confirmStatusChange() {
+  const bugId = $('#statusChangeModal').data('bugId');
+  const newStatus = $('#changeStatusSelect').val();
+  
+  showLoading('更新状态...');
+  $.ajax({
+    url: '/api/bugs/' + bugId + '/status',
+    method: 'PUT',
+    contentType: 'application/json',
+    headers: { 'Authorization': 'Bearer ' + currentToken },
+    data: JSON.stringify({ status: newStatus }),
+    success: function(res) {
+      hideLoading();
+      if (res.success) {
+        $('#statusChangeModal').modal('hide');
+        alert('✅ 状态已更新');
+        loadBugs();
+        loadStats();
+      } else {
+        alert('更新失败：' + res.error);
       }
-    });
-  }
+    },
+    error: function() {
+      hideLoading();
+      alert('更新失败');
+    }
+  });
 }
 
 function loadStats() {

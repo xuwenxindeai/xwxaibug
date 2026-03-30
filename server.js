@@ -10,6 +10,8 @@ const db = require('./database');
 const scheduler = require('./scheduler');
 const openclaw = require('./openclaw-client');
 const config = require('./config/config');
+const auth = require('./auth');
+const gitClient = require('./git-client');
 
 const app = express();
 
@@ -341,6 +343,166 @@ app.post('/api/poll', async (req, res) => {
   }
 });
 
+// ==================== 用户认证 API ====================
+
+// 用户登录
+app.post('/api/auth/login', (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ success: false, error: '用户名和密码必填' });
+    }
+    
+    const result = auth.userOps.login(username, password);
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(401).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 用户登出
+app.post('/api/auth/logout', auth.requireAuth, (req, res) => {
+  const authHeader = req.headers.authorization;
+  const token = authHeader.substring(7);
+  auth.userOps.logout(token);
+  res.json({ success: true });
+});
+
+// 获取当前用户
+app.get('/api/auth/me', auth.requireAuth, (req, res) => {
+  const user = auth.userOps.getCurrentUser(req.headers.authorization.substring(7));
+  res.json({ success: true, data: user });
+});
+
+// 获取所有用户（仅管理员）
+app.get('/api/users', auth.requireAuth, auth.requireRole('admin'), (req, res) => {
+  const users = auth.userOps.getAllUsers();
+  res.json({ success: true, data: users });
+});
+
+// 创建用户（仅管理员）
+app.post('/api/users', auth.requireAuth, auth.requireRole('admin'), (req, res) => {
+  try {
+    const { username, password, role, email } = req.body;
+    const result = auth.userOps.createUser(username, password, role, email);
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==================== 项目配置 API ====================
+
+// 更新项目配置（仅管理员）
+app.put('/api/projects/:id', auth.requireAuth, auth.requireRole('admin'), (req, res) => {
+  try {
+    const { branch } = req.body;
+    const projectId = req.params.id;
+    
+    db.db.prepare(`
+      UPDATE projects SET branch = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+    `).run(branch, projectId);
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 获取项目 Git 分支列表（仅开发和管理员）
+app.get('/api/projects/:id/branches', auth.requireAuth, auth.requireRole('developer', 'admin'), async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const project = db.db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+    
+    if (!project) {
+      return res.status(404).json({ success: false, error: '项目不存在' });
+    }
+    
+    const branches = await gitClient.getAllBranches(project.path);
+    const currentBranch = await gitClient.getCurrentBranch(project.path);
+    
+    res.json({
+      success: true,
+      data: {
+        current: currentBranch,
+        all: branches
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 切换项目分支（仅开发和管理员）
+app.post('/api/projects/:id/checkout', auth.requireAuth, auth.requireRole('developer', 'admin'), async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const { branch } = req.body;
+    const project = db.db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+    
+    if (!project) {
+      return res.status(404).json({ success: false, error: '项目不存在' });
+    }
+    
+    const result = await gitClient.checkoutBranch(project.path, branch);
+    
+    if (result.success) {
+      // 更新数据库中的分支
+      db.db.prepare('UPDATE projects SET branch = ? WHERE id = ?').run(branch, projectId);
+    }
+    
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 拉取项目最新代码（仅开发和管理员）
+app.post('/api/projects/:id/pull', auth.requireAuth, auth.requireRole('developer', 'admin'), async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const project = db.db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+    
+    if (!project) {
+      return res.status(404).json({ success: false, error: '项目不存在' });
+    }
+    
+    const result = await gitClient.pull(project.path);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 获取项目状态（包含分支和提交记录）
+app.get('/api/projects/:id/status', auth.requireAuth, async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    const project = db.db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+    
+    if (!project) {
+      return res.status(404).json({ success: false, error: '项目不存在' });
+    }
+    
+    const status = await gitClient.getRepoStatus(project.path);
+    res.json({ success: true, data: status });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // ==================== 启动服务器 ====================
 
 const PORT = config.server.port;
@@ -353,6 +515,7 @@ app.listen(PORT, () => {
   console.log('\n' + '='.repeat(50));
   console.log('🚀 AIBug 自动修复平台已启动');
   console.log('📍 地址：http://localhost:' + PORT);
+  console.log('🔐 默认账户：admin/admin123, tester/test123, developer/dev123');
   console.log('📊 统计：http://localhost:' + PORT + '/api/stats');
   console.log('🐛 Bug 列表：http://localhost:' + PORT + '/api/bugs');
   console.log('='.repeat(50) + '\n');

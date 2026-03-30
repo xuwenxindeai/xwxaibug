@@ -18,6 +18,31 @@ db.pragma('foreign_keys = ON');
 
 // 创建表结构
 function initDatabase() {
+  // 用户表
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      role TEXT DEFAULT 'tester',
+      email TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      last_login DATETIME
+    )
+  `);
+
+  // 会话表
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
+      token TEXT UNIQUE NOT NULL,
+      expires_at DATETIME NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+
   // Bug 表
   db.exec(`
     CREATE TABLE IF NOT EXISTS bugs (
@@ -37,9 +62,11 @@ function initDatabase() {
       fixed_code_snippet TEXT,
       code_changes TEXT,
       snippet_start_line INTEGER,
+      created_by INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      fixed_at DATETIME
+      fixed_at DATETIME,
+      FOREIGN KEY (created_by) REFERENCES users(id)
     )
   `);
 
@@ -49,9 +76,10 @@ function initDatabase() {
       id INTEGER PRIMARY KEY,
       name TEXT NOT NULL,
       path TEXT NOT NULL,
-      branch TEXT,
+      branch TEXT DEFAULT 'master',
       type TEXT,
-      enabled INTEGER DEFAULT 1
+      enabled INTEGER DEFAULT 1,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
@@ -62,8 +90,10 @@ function initDatabase() {
       bug_id INTEGER,
       action TEXT NOT NULL,
       details TEXT,
+      created_by INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (bug_id) REFERENCES bugs(id)
+      FOREIGN KEY (bug_id) REFERENCES bugs(id),
+      FOREIGN KEY (created_by) REFERENCES users(id)
     )
   `);
 
@@ -74,8 +104,27 @@ function initDatabase() {
   `);
 
   config.projects.forEach(project => {
-    stmt.run(project.id, project.name, project.path, project.branch, project.type);
+    stmt.run(project.id, project.name, project.path, project.branch || 'master', project.type);
   });
+
+  // 初始化默认管理员账户（密码：admin123）
+  const bcrypt = require('bcryptjs');
+  const adminHash = bcrypt.hashSync('admin123', 10);
+  const testerHash = bcrypt.hashSync('test123', 10);
+  const devHash = bcrypt.hashSync('dev123', 10);
+  
+  try {
+    db.exec(`
+      INSERT OR IGNORE INTO users (username, password_hash, role, email)
+      VALUES 
+        ('admin', '${adminHash}', 'admin', 'admin@example.com'),
+        ('tester', '${testerHash}', 'tester', 'tester@example.com'),
+        ('developer', '${devHash}', 'developer', 'dev@example.com')
+    `);
+    console.log('✅ 默认用户已创建：admin/admin123, tester/test123, developer/dev123');
+  } catch (e) {
+    console.log('⚠️ 用户可能已存在');
+  }
 
   console.log('✅ 数据库初始化完成');
 }

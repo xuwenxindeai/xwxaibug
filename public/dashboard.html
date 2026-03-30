@@ -231,6 +231,8 @@ function loadCurrentProject() {
         const current = res.data;
         if (current && current.children.length > 0) {
           const paths = current.children.map(c => {
+            const pathDisplay = formatPath(c.path);
+            return `<div class="small"><i class="bi bi-${c.type === 'ios' ? 'apple' : c.type === 'nodejs' ? 'file-code' : 'braces'}"></i> ${escapeHtml(c.name)}: ${escapeHtml(pathDisplay)} | <strong class="text-primary">${escapeHtml(c.branch || 'master')}</strong></div>`;
           }).join('');
           $('#projectPathDisplay').html(paths);
         }

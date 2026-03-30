@@ -6,6 +6,18 @@ const path = require('path');
 const { exec } = require('child_process');
 const config = require('./config/config');
 
+// 加载项目索引（如果存在）
+let projectIndex = null;
+try {
+  const indexPath = path.join(__dirname, 'project-index.json');
+  if (fs.existsSync(indexPath)) {
+    projectIndex = require('./project-index.json');
+    console.log('✅ 项目索引已加载');
+  }
+} catch (e) {
+  console.log('⚠️ 项目索引加载失败:', e.message);
+}
+
 class OpenClawClient {
   constructor() {
     this.workspacePath = config.openclaw.workspacePath;

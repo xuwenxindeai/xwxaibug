@@ -203,6 +203,7 @@ function loadCurrentProject() {
     url: '/api/current-project',
     headers: { 'Authorization': 'Bearer ' + currentToken },
     success: function(res) {
+      hideLoading(); // 隐藏加载提示
       if (res.success) {
         currentProjectId = res.data?.id || 1; // 父项目 ID
         projectsCache = res.all.flatMap(g => g.children.map(c => ({...c, group_id: g.id, group_name: g.display_name})));
@@ -210,7 +211,6 @@ function loadCurrentProject() {
         // 填充项目选择器（只显示父项目）
         $('#currentProjectSelect').html('');
         res.all.forEach(g => {
-          const childNames = g.children.map(c => c.name).join(' + ');
           $('#currentProjectSelect').append(`<option value="${g.id}" ${g.id === currentProjectId ? 'selected' : ''}>${escapeHtml(g.display_name)} (${g.children.length}个子项目)</option>`);
         });
         
@@ -226,6 +226,10 @@ function loadCurrentProject() {
         
         renderProjectStatus();
       }
+    },
+    error: function() {
+      hideLoading();
+      alert('加载项目失败');
     }
   });
 }

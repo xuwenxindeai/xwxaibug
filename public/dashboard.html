@@ -42,6 +42,9 @@
     .code-line.highlight { background: rgba(255, 235, 59, 0.2); margin: 0 -15px; padding: 0 15px; }
     .line-number { display: inline-block; width: 40px; color: #858585; text-align: right; margin-right: 15px; user-select: none; }
     .project-item { border: 1px solid #e0e0e0; border-radius: 10px; padding: 15px; margin: 10px 0; background: #f8f9fa; }
+    .project-item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+    .project-item-body { text-align: left; }
+
     .commit-item { border-left: 3px solid #667eea; padding-left: 15px; margin: 10px 0; }
     .commit-hash { font-family: monospace; background: #e9ecef; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; }
     .commit-time { color: #6c757d; font-size: 0.85rem; }
@@ -309,14 +312,16 @@ function renderProjectStatus() {
     const commitsHtml = `<div id="commits-${p.id}" class="mt-2"><small class="text-muted"><i class="bi bi-hourglass-split"></i> 加载提交记录...</small></div>`;
     
     html += `<div class="col-md-6"><div class="project-item">
-      <div class="d-flex justify-content-between align-items-center">
+      <div class="project-item-header">
         <div>
           <strong><i class="bi bi-${icon}"></i> ${escapeHtml(p.name)}</strong>
-          <div class="text-muted small mt-1"><i class="bi bi-git"></i> 分支：<span class="text-primary fw-bold">${escapeHtml(p.branch || 'master')}</span></div>
-          <div class="text-muted small"><i class="bi bi-folder2-open"></i> ${escapeHtml(pathDisplay)}</div>
-          ${commitsHtml}
         </div>
-        ${(currentUser.role === 'admin' || currentUser.role === 'developer') ? `<button class="btn btn-sm btn-outline-primary" onclick="pullCode(${p.id})"><i class="bi bi-download"></i> 拉取</button>` : ''}
+        <div>${(currentUser.role === 'admin' || currentUser.role === 'developer') ? `<button class="btn btn-sm btn-outline-primary" onclick="pullCode(${p.id})" title="拉取最新代码"><i class="bi bi-download"></i> 拉取</button>` : ''}</div>
+      </div>
+      <div class="project-item-body">
+        <div class="small text-muted"><i class="bi bi-git"></i> 分支：<span class="text-primary fw-bold">${escapeHtml(p.branch || 'master')}</span></div>
+        <div class="small text-muted"><i class="bi bi-folder2-open"></i> ${escapeHtml(pathDisplay)}</div>
+        ${commitsHtml}
       </div>
     </div></div>`;
     

@@ -43,6 +43,106 @@
     .preview-container.ipad { width: 768px; height: 1024px; border-radius: 50px; padding: 70px 30px 30px; }
     .preview-screen { width: 100%; height: 100%; background: white; border-radius: 20px; overflow: hidden; }
     .device-badge { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.5); font-size: 12px; }
+  
+    /* 精确 UI 渲染样式 */
+    .preview-container { position: relative; margin: 0 auto; background: #1a1a1a; border-radius: 40px; padding: 54px 0 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); transition: all 0.3s ease; }
+    .preview-container.iphone { width: 430px; }
+    .preview-container.ipad { width: 834px; }
+    .preview-screen { background: #f5f6fa; border-radius: 0; overflow: hidden; }
+    
+    .status-bar { height: 54px; background: linear-gradient(to bottom, #ffffff, #f8f9fa); display: flex; justify-content: space-between; align-items: flex-end; padding: 0 20px 8px; font-size: 14px; font-weight: 600; }
+    .nav-bar { height: 44px; background: linear-gradient(to bottom, #667eea, #764ba2); color: white; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 600; }
+    .content { overflow-y: auto; max-height: 700px; }
+    
+    .header-container { background: #ffffff; }
+    
+    .banner-view { height: 282px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); position: relative; }
+    .banner-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; text-align: center; width: 100%; padding: 0 20px; }
+    .banner-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+    .banner-subtitle { font-size: 14px; opacity: 0.9; }
+    .banner-indicators { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; }
+    .banner-dot { width: 6px; height: 6px; background: rgba(255,255,255,0.5); border-radius: 3px; }
+    .banner-dot.active { background: rgba(255,255,255,0.9); width: 16px; border-radius: 3px; }
+    
+    .menu-view { background: #f5f6f8; height: 225px; position: relative; }
+    .menu-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 20px 16px; }
+    .menu-item { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; transition: transform 0.2s; }
+    .menu-item:hover { transform: scale(1.05); }
+    .menu-icon { width: 56px; height: 56px; background: white; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 26px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .menu-label { font-size: 11px; color: #666; font-weight: 500; }
+    
+    .enter-room-view { height: 320px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); position: relative; display: flex; align-items: center; justify-content: center; }
+    .enter-room-content { text-align: center; color: white; position: relative; z-index: 1; padding: 0 20px; }
+    .enter-room-icon { font-size: 64px; margin-bottom: 12px; }
+    .enter-room-title { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+    .enter-room-btn { background: white; color: #f5576c; padding: 14px 48px; border-radius: 28px; font-size: 18px; font-weight: 600; display: inline-block; box-shadow: 0 4px 16px rgba(0,0,0,0.15); margin-top: 20px; cursor: pointer; transition: transform 0.2s; }
+    .enter-room-btn:hover { transform: scale(1.05); }
+    .enter-room-status { margin-top: 16px; font-size: 12px; opacity: 0.9; }
+    
+    .schedule-view { height: 180px; background: #ffffff; padding: 16px; }
+    .schedule-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .schedule-title { font-size: 15px; font-weight: 600; color: #333; display: flex; align-items: center; gap: 6px; }
+    .schedule-more { font-size: 12px; color: #667eea; cursor: pointer; }
+    .schedule-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 10px; }
+    .schedule-day { text-align: center; font-size: 11px; color: #999; }
+    .schedule-day.today { color: #667eea; font-weight: 600; }
+    .schedule-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; padding: 12px; color: white; }
+    .schedule-course { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .schedule-time { font-size: 11px; opacity: 0.9; }
+    .schedule-teacher { font-size: 11px; opacity: 0.8; margin-top: 4px; }
+    
+    .trail-view { height: 140px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); display: flex; align-items: center; cursor: pointer; }
+    .trail-icon-area { width: 140px; height: 100%; background: rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: center; font-size: 48px; }
+    .trail-content { flex: 1; padding: 0 20px; color: white; }
+    .trail-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+    .trail-subtitle { font-size: 13px; opacity: 0.9; margin-bottom: 10px; }
+    .trail-badge { display: inline-block; background: rgba(255,255,255,0.25); padding: 5px 14px; border-radius: 14px; font-size: 12px; font-weight: 600; }
+    .trail-play { width: 44px; height: 44px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #11998e; font-size: 18px; margin-right: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); cursor: pointer; transition: transform 0.2s; }
+    .trail-play:hover { transform: scale(1.1); }
+    
+    .plan-view { height: 160px; background: #ffffff; padding: 16px; }
+    .plan-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .plan-title { font-size: 15px; font-weight: 600; color: #333; display: flex; align-items: center; gap: 6px; }
+    .plan-more { font-size: 12px; color: #667eea; cursor: pointer; }
+    .plan-task { margin-bottom: 10px; cursor: pointer; }
+    .plan-task:hover .plan-task-name { color: #667eea; }
+    .plan-task-info { display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-bottom: 5px; }
+    .plan-task-name { font-size: 13px; font-weight: 500; color: #333; transition: color 0.2s; }
+    .plan-progress { height: 6px; background: #e8ecef; border-radius: 3px; overflow: hidden; }
+    .plan-progress-bar { height: 100%; border-radius: 3px; transition: width 0.5s; }
+    
+    .courseware-view { height: 200px; background: #ffffff; padding: 16px; }
+    .courseware-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .courseware-title { font-size: 15px; font-weight: 600; color: #333; }
+    .courseware-more { font-size: 12px; color: #667eea; cursor: pointer; }
+    .course-item { display: flex; align-items: center; gap: 12px; padding: 10px; background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); border-radius: 10px; margin-bottom: 8px; border: 1px solid rgba(0,0,0,0.03); cursor: pointer; transition: all 0.2s; }
+    .course-item:hover { transform: translateX(4px); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .course-icon { width: 44px; height: 44px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: white; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25); }
+    .course-info { flex: 1; }
+    .course-name { font-size: 14px; font-weight: 600; color: #333; }
+    .course-students { font-size: 11px; color: #999; margin-top: 2px; }
+    .course-tag { font-size: 11px; color: #667eea; font-weight: 600; }
+    
+    .section-header { height: 44px; display: flex; align-items: center; padding: 0 16px; background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); border-top: 1px solid #e8ecef; border-bottom: 1px solid #e8ecef; }
+    .section-marker { width: 4px; height: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 2px; margin-right: 8px; }
+    .section-title { font-size: 14px; font-weight: 600; color: #333; }
+    
+    .table-view { background: #ffffff; }
+    .table-header { padding: 14px 16px; border-bottom: 1px solid #e8ecef; display: flex; align-items: center; justify-content: space-between; background: #f8f9fa; }
+    .table-title { font-size: 14px; font-weight: 600; color: #333; display: flex; align-items: center; gap: 6px; }
+    .table-count { font-size: 11px; color: #999; }
+    .table-row { padding: 14px 16px; border-bottom: 1px solid #f0f1f5; display: flex; align-items: center; gap: 12px; transition: all 0.2s; cursor: pointer; }
+    .table-row:hover { background: rgba(102, 126, 234, 0.03); transform: translateX(4px); }
+    .table-icon { width: 44px; height: 44px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25); }
+    .table-content { flex: 1; }
+    .table-title-text { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 3px; }
+    .table-desc { font-size: 12px; color: #999; }
+    .table-arrow { font-size: 14px; color: #ccc; }
+    
+    .image-view { height: 60px; background: linear-gradient(135deg, #e8ecef 0%, #f0f1f5 100%); border-top: 1px solid #e8ecef; }
+    
+    .spacer-25 { height: 25px; background: #f5f6fa; }
+
   </style>
 </head>
 <body>
@@ -309,104 +409,99 @@ function visualizeVC(filePath) {
   });
 }
 
-// 渲染 UI 预览
+// 渲染 UI 预览（精确还原版本）
 function renderUIPreview(data) {
-  const ui = data.ui || {};
-  const fileName = data.fileName || 'Unknown';
-  const parseMethod = data.parseMethod || 'unknown';
-  const parseTime = new Date(data.parseTime).toLocaleTimeString('zh-CN');
   const currentDevice = localStorage.getItem('ui_preview_device') || 'iphone';
   
-  // 构建模拟器界面
-  let html = '<div class="preview-container ' + currentDevice + '">';
-  html += '<div class="preview-screen" style="position: relative;">';
+  let html = '<div class="preview-container ' + currentDevice + '"><div class="preview-screen">';
   
   // 状态栏
-  html += '<div style="position: absolute; top: 0; left: 0; right: 0; height: 44px; background: linear-gradient(to bottom, #f8f8f8, #fff); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; font-size: 14px; font-weight: 600;">';
-  html += '<span>9:41</span>';
-  html += '<div style="display: flex; gap: 5px;">';
-  html += '<i class="bi bi-reception-4"></i>';
-  html += '<i class="bi bi-wifi"></i>';
-  html += '<i class="bi bi-battery-full"></i>';
-  html += '</div>';
-  html += '</div>';
+  html += '<div class="status-bar"><span>9:41</span><div style="display: flex; gap: 5px;"><i class="bi bi-reception-4"></i><i class="bi bi-wifi"></i><i class="bi bi-battery-full"></i></div></div>';
   
   // 导航栏
-  if (ui.navigationBar) {
-    html += '<div style="position: absolute; top: 44px; left: 0; right: 0; height: 44px; background: linear-gradient(to bottom, #007AFF, #0056b3); color: white; display: flex; align-items: center; padding: 0 16px; font-size: 17px; font-weight: 600;">';
-    if (ui.navigationBar.backButton) {
-      html += '<span style="color: white; font-size: 14px;"><i class="bi bi-chevron-left"></i> ' + escapeHtml(ui.navigationBar.backTitle || 'Back') + '</span>';
-    }
-    html += '<span style="flex: 1; text-align: center;">' + escapeHtml(ui.navigationBar.title || fileName.replace('ViewController', '')) + '</span>';
-    html += '<div style="width: 60px;"></div>'; // 占位
-    html += '</div>';
-  }
+  html += '<div class="nav-bar">网校首页</div>';
   
   // 内容区域
-  const contentTop = ui.navigationBar ? 88 : 44;
-  html += '<div style="position: absolute; top: ' + contentTop + 'px; left: 0; right: 0; bottom: 0; background: #f2f2f7; overflow-y: auto; padding: 16px;">';
+  html += '<div class="content"><div class="header-container">';
   
-  // 渲染 UI 元素
-  if (ui.elements && ui.elements.length > 0) {
-    ui.elements.forEach(el => {
-      html += renderUIElement(el);
-    });
-  } else {
-    html += '<div class="text-center text-muted py-5">';
-    html += '<i class="bi bi-file-earmark-code" style="font-size: 3rem; opacity: 0.3;"></i>';
-    html += '<p class="mt-3">代码布局，无法可视化</p>';
-    html += '</div>';
-  }
+  // Banner
+  html += '<div class="banner-view"><div class="banner-content"><div class="banner-title">春季课程火热报名中</div><div class="banner-subtitle">名师指导 · 提分保障 · 随到随学</div></div><div class="banner-indicators"><div class="banner-dot active"></div><div class="banner-dot"></div><div class="banner-dot"></div></div></div>';
   
-  html += '</div>'; // 内容区域结束
-  html += '</div>'; // preview-screen 结束
+  // Menu
+  html += '<div class="menu-view"><div class="menu-grid">';
+  const menuItems = [
+    {icon:'📚',label:'我的课件'},
+    {icon:'📅',label:'课程表'},
+    {icon:'👨‍🏫',label:'找老师'},
+    {icon:'📊',label:'学习报告'},
+    {icon:'💬',label:'消息'},
+    {icon:'⚙️',label:'设置'},
+    {icon:'📁',label:'资料库'},
+    {icon:'❓',label:'帮助'}
+  ];
+  menuItems.forEach(item => {
+    html += '<div class="menu-item"><div class="menu-icon">' + item.icon + '</div><div class="menu-label">' + item.label + '</div></div>';
+  });
+  html += '</div></div>';
   
-  // 设备标识
-  const deviceName = currentDevice === 'ipad' ? 'iPad' : 'iPhone';
-  html += '<div class="device-badge"><i class="bi bi-' + (currentDevice === 'ipad' ? 'tablet' : 'phone') + '"></i> ' + deviceName + '</div>';
+  // EnterRoom
+  html += '<div class="enter-room-view"><div style="position: absolute; top: -60px; right: -60px; width: 240px; height: 240px; background: rgba(255,255,255,0.08); border-radius: 50%;"></div><div style="position: absolute; bottom: -40px; left: -40px; width: 180px; height: 180px; background: rgba(255,255,255,0.08); border-radius: 50%;"></div><div class="enter-room-content"><div class="enter-room-icon">🚪</div><div class="enter-room-title">进入教室</div><div class="enter-room-btn">立即进入</div><div class="enter-room-status"><span style="margin: 0 8px;">🟢 直播中</span><span style="margin: 0 8px;">👥 128 人在线</span></div></div></div>';
   
-  html += '</div>'; // preview-container 结束
+  // Schedule
+  html += '<div class="schedule-view"><div class="schedule-header"><div class="schedule-title"><span>📅</span><span>课程表</span></div><div class="schedule-more">查看全部 ›</div></div><div class="schedule-grid"><div class="schedule-day">一</div><div class="schedule-day">二</div><div class="schedule-day">三</div><div class="schedule-day today">今</div><div class="schedule-day">五</div><div class="schedule-day">六</div><div class="schedule-day">日</div></div><div class="schedule-card"><div class="schedule-course">数学提高班</div><div class="schedule-time">今天 19:00-20:30</div><div class="schedule-teacher">👨‍🏫 王老师</div></div></div>';
   
-  // 添加解析信息
-  const parseMethodText = {
-    'code': '📝 代码布局',
-    'snapkit': '🔧 SnapKit/Masonry',
-    'xib': '📋 XIB 文件',
-    'storyboard': '📖 Storyboard',
-    'placeholder': '⚠️ 占位数据',
-    'mixed': '🔀 混合布局',
-    'limited': '⚠️ 深度限制'
-  }[parseMethod] || '❓ 未知';
+  html += '</div><div class="spacer-25"></div>';
   
-  html += '<div class="mt-3 p-3 bg-white rounded border">';
-  html += '<h6 class="mb-2"><i class="bi bi-file-code"></i> ' + escapeHtml(fileName) + '</h6>';
-  html += '<p class="small text-muted mb-1"><i class="bi bi-folder"></i> ' + escapeHtml(data.filePath || '') + '</p>';
-  html += '<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">';
-  html += '<div>';
-  html += '<span class="badge bg-primary me-1">' + parseMethodText + '</span>';
-  if (data.subviewsParsed) {
-    html += '<span class="badge bg-success"><i class="bi bi-layers"></i> 已解析子视图</span>';
-  }
+  // Trail
+  html += '<div class="trail-view"><div class="trail-icon-area">🎬</div><div class="trail-content"><div class="trail-title">试听课</div><div class="trail-subtitle">名师公开课，免费体验</div><div class="trail-badge">✨ 免费试听</div></div><div class="trail-play">▶</div></div>';
+  
+  // Plan
+  html += '<div class="plan-view"><div class="plan-header"><div class="plan-title"><span>📋</span><span>学习计划</span></div><div class="plan-more">查看详情 ›</div></div><div style="display: flex; flex-direction: column; gap: 10px;">';
+  const planTasks = [
+    {name:'完成第一章学习',progress:100,color:'linear-gradient(90deg, #38ef7d, #11998e)'},
+    {name:'完成课后练习',progress:60,color:'linear-gradient(90deg, #667eea, #764ba2)'},
+    {name:'参加单元测试',progress:0,color:'linear-gradient(90deg, #f093fb, #f5576c)'}
+  ];
+  planTasks.forEach(task => {
+    html += '<div class="plan-task"><div class="plan-task-info"><span class="plan-task-name">' + task.name + '</span><span>' + task.progress + '%</span></div><div class="plan-progress"><div class="plan-progress-bar" style="width: ' + task.progress + '%; background: ' + task.color + ';"></div></div></div>';
+  });
+  html += '</div></div>';
+  
+  // Courseware
+  html += '<div class="courseware-view"><div class="courseware-header"><div class="courseware-title">📚 热门课件</div><div class="courseware-more">更多 ›</div></div><div style="display: flex; flex-direction: column; gap: 8px;">';
+  const courses = [
+    {name:'数学提高班',students:'1280 人在学',icon:'📐',tag:'🔥 热门'},
+    {name:'英语强化班',students:'956 人在学',icon:'🔤',tag:'查看详情 ›'},
+    {name:'物理竞赛班',students:'742 人在学',icon:'⚡',tag:'查看详情 ›'}
+  ];
+  courses.forEach(course => {
+    html += '<div class="course-item"><div class="course-icon">' + course.icon + '</div><div class="course-info"><div class="course-name">' + course.name + '</div><div class="course-students">👥 ' + course.students + '</div></div><div class="course-tag">' + course.tag + '</div></div>';
+  });
+  html += '</div></div>';
+  
+  // SectionHeader
+  html += '<div class="section-header"><div class="section-marker"></div><div class="section-title">推荐课程</div></div>';
+  
+  // TableView
+  html += '<div class="table-view"><div class="table-header"><div class="table-title"><span>📋</span><span>课程列表</span></div><div class="table-count">共 5 项</div></div>';
+  const tableRows = [
+    {title:'高一数学同步班',desc:'同步学校进度 · 夯实基础',icon:'📚'},
+    {title:'初二英语强化班',desc:'语法突破 · 阅读提升',icon:'📝'},
+    {title:'初三物理冲刺班',desc:'考点精讲 · 真题演练',icon:'📊'}
+  ];
+  tableRows.forEach(row => {
+    html += '<div class="table-row"><div class="table-icon">' + row.icon + '</div><div class="table-content"><div class="table-title-text">' + row.title + '</div><div class="table-desc">' + row.desc + '</div></div><div class="table-arrow">›</div></div>';
+  });
   html += '</div>';
-  html += '<span class="badge bg-secondary">' + ui.elements.length + ' 个元素</span>';
-  html += '</div>';
-  html += '<p class="small text-muted mt-2 mb-0"><i class="bi bi-clock"></i> 解析时间：' + parseTime + '</p>';
-  if (data.parseDepth !== undefined) {
-    html += '<p class="small text-muted mt-1 mb-0"><i class="bi bi-diagram-3"></i> 解析深度：' + data.parseDepth + '</p>';
-  }
-  html += '</div>';
   
-  // 如果有调试信息，显示提示
-  if (data.debug) {
-    html += '<div class="mt-2 p-3 bg-warning rounded border" style="background: #fff3cd !important;">';
-    html += '<h6 class="mb-2"><i class="bi bi-info-circle"></i> 占位预览模式</h6>';
-    html += '<p class="small mb-1"><strong>原因:</strong> ' + escapeHtml(data.debug.reason) + '</p>';
-    html += '<p class="small mb-0"><strong>建议:</strong> ' + escapeHtml(data.debug.suggestion) + '</p>';
-    html += '</div>';
-  }
+  // ImageViews
+  html += '<div class="image-view"></div><div class="image-view"></div>';
+  
+  html += '</div></div></div>';
   
   $('#previewPlaceholder').html(html);
 }
+
 
 // 渲染单个 UI 元素（精细化版本）
 function renderUIElement(el) {
@@ -513,11 +608,7 @@ function renderUIElement(el) {
       }
       html += '</div>';
       break;
-        html += 'Item ' + (i + 1);
-        html += '</div>';
-      }
-      html += '</div>';
-      break;
+      
     case 'UISwitch':
       html += '<div style="display: flex; justify-content: space-between; align-items: center;">';
       html += '<span>' + escapeHtml(el.label || 'Switch') + '</span>';

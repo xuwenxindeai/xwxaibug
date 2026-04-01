@@ -62,7 +62,15 @@ app.use('/api/', (req, res, next) => {
   next();
 });
 
-// 静态文件服务（放在最后）
+// 静态文件服务（放在最后）- 添加防缓存头
+app.use((req, res, next) => {
+  if (req.path.endsWith('.html') || req.path.endsWith('.js')) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 // 确保日志目录存在
@@ -1239,6 +1247,23 @@ function parseVCFile(filePath, depth = 0) {
   
   return result;
 }
+
+// ==================== 精确 UI 渲染 API ====================
+
+const preciseRender = require('./ui-precise-render');
+
+// 精确解析 VC 文件 UI
+app.post('/api/ui/parse-vc-precise', auth.requireAuth, (req, res) => {
+  try {
+    const { filePath } = req.body;
+    if (!filePath) return res.status(400).json({ success: false, error: '文件路径不能为空' });
+    
+    const result = preciseRender.parseVCFilePrecise(filePath);
+    res.json({ success: true, data: result });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 // ==================== Git 相关 API ====================
 

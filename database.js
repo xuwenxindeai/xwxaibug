@@ -96,6 +96,38 @@ function initDatabase() {
       FOREIGN KEY (created_by) REFERENCES users(id)
     )
   `);
+  
+  // 代码分析结果表
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS analysis_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_path TEXT NOT NULL,
+      analyzed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      total_files INTEGER,
+      total_lines INTEGER,
+      avg_complexity REAL,
+      health_score INTEGER,
+      modules TEXT,
+      top_files TEXT,
+      raw_data TEXT
+    )
+  `);
+  
+  // 可视化缓存表
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS visualization_cache (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_path TEXT NOT NULL UNIQUE,
+      git_hash TEXT,
+      git_branch TEXT,
+      has_local_changes INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      raw_data TEXT
+    )
+  `);
+  
+  db.exec('CREATE INDEX IF NOT EXISTS idx_viz_path ON visualization_cache(project_path)');
 
   // 初始化默认项目
   const stmt = db.prepare(`

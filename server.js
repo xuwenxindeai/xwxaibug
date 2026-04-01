@@ -683,3 +683,490 @@ app.listen(PORT, () => {
 });
 
 module.exports = app;
+
+// ==================== UI 界面相关 API ====================
+
+// 获取项目目录树（用于 UI 界面）
+app.post('/api/ui/project-tree', auth.requireAuth, (req, res) => {
+  try {
+    const { path: projectPath } = req.body;
+    if (!projectPath) return res.status(400).json({ success: false, error: '项目路径不能为空' });
+    
+    const tree = buildProjectTree(projectPath);
+    res.json({ success: true, data: tree });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 解析 VC 文件的 UI 结构
+app.post('/api/ui/parse-vc', auth.requireAuth, (req, res) => {
+  try {
+    const { filePath } = req.body;
+    if (!filePath) return res.status(400).json({ success: false, error: '文件路径不能为空' });
+    
+    const uiStructure = parseVCFile(filePath);
+    res.json({ success: true, data: uiStructure });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 构建项目目录树
+function buildProjectTree(rootPath, maxDepth = 10) {
+  const path = require('path');
+  const fs = require('fs');
+  
+  // 排除的目录
+  const excludedDirs = [
+    'node_modules', 'Pods', 'Carthage', 'Frameworks', '.git', 'build',
+    'DerivedData', '.xcodeproj', '.xcworkspace', 'Tests', 'Test',
+    'Vendors', 'protobuf', 'objectivec', '.xcassets', '.imageset',
+    '.appiconset', '.colorset', '.launchimage'
+  ];
+  
+  // 递归构建目录树
+  function scanDir(dirPath, depth = 0) {
+    if (depth > maxDepth) return null;
+    
+    const dirName = path.basename(dirPath);
+    if (excludedDirs.includes(dirName)) return null;
+    
+    const node = {
+      name: dirName,
+      path: dirPath,
+      type: 'folder',
+      children: []
+    };
+    
+    try {
+      const items = fs.readdirSync(dirPath);
+      items.forEach(item => {
+        if (item.startsWith('.')) return;
+        
+        const itemPath = path.join(dirPath, item);
+        try {
+          const stat = fs.statSync(itemPath);
+          if (stat.isDirectory()) {
+            const childNode = scanDir(itemPath, depth + 1);
+            if (childNode) node.children.push(childNode);
+          } else if (stat.isFile()) {
+            // 只保留代码文件和资源文件
+            const ext = path.extname(item).toLowerCase();
+            if (['.m', '.mm', '.swift', '.h', '.hpp', '.cpp', '.cc', '.c', '.xib', '.storyboard'].includes(ext)) {
+              node.children.push({
+                name: item,
+                path: itemPath,
+                type: 'file'
+              });
+            }
+          }
+        } catch (e) {
+          // 忽略无法访问的文件/目录
+        }
+      });
+    } catch (e) {
+      // 忽略无法访问的目录
+    }
+    
+    // 按类型和名称排序：文件夹在前，文件在后
+    node.children.sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+    
+    return node;
+  }
+  
+  // 从根目录开始扫描
+  const rootName = path.basename(rootPath);
+  const rootNode = {
+    name: rootName,
+    path: rootPath,
+    type: 'folder',
+    children: []
+  };
+  
+  try {
+    const items = fs.readdirSync(rootPath);
+    items.forEach(item => {
+      if (item.startsWith('.')) return;
+      
+      const itemPath = path.join(rootPath, item);
+      try {
+        const stat = fs.statSync(itemPath);
+        if (stat.isDirectory()) {
+          const childNode = scanDir(itemPath, 1);
+          if (childNode) rootNode.children.push(childNode);
+        }
+      } catch (e) {
+        // 忽略
+      }
+    });
+  } catch (e) {
+    throw new Error('无法读取项目目录：' + e.message);
+  }
+  
+  // 排序
+  rootNode.children.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+  
+  return rootNode;
+}
+
+// 解析 VC 文件
+function parseVCFile(filePath, depth = 0) {
+  const fs = require('fs');
+  const path = require('path');
+  
+  // 防止无限递归
+  if (depth > 3) {
+    return {
+      fileName: path.basename(filePath),
+      filePath: filePath,
+      parseTime: new Date().toISOString(),
+      parseMethod: 'limited',
+      ui: { navigationBar: null, elements: [] },
+      debug: { message: '达到最大解析深度', reason: '避免循环引用', suggestion: '子视图嵌套不超过 3 层' }
+    };
+  }
+  
+  // 检查文件是否存在
+  if (!fs.existsSync(filePath)) {
+    throw new Error('文件不存在：' + filePath);
+  }
+  
+  const content = fs.readFileSync(filePath, 'utf-8');
+  const fileName = path.basename(filePath);
+  const fileExt = path.extname(filePath).toLowerCase();
+  
+  const result = {
+    fileName: fileName,
+    filePath: filePath,
+    parseTime: new Date().toISOString(),
+    parseDepth: depth,
+    ui: {
+      navigationBar: null,
+      elements: []
+    }
+  };
+  
+  // 如果是 .h 文件，尝试找对应的 .m 文件
+  if (fileExt === '.h') {
+    const mFilePath = filePath.replace('.h', '.m');
+    if (fs.existsSync(mFilePath)) {
+      return parseVCFile(mFilePath, depth);
+    }
+  }
+  
+  // 解析代码中的 UI 元素
+  if (fileExt === '.m' || fileExt === '.mm') {
+    // 1. 解析自定义视图属性（@property）
+    const propertyRegex = /@property\s*\([^)]+\)\s*(NS\w+View|\w+View)\s*\*\s*(\w+)/g;
+    let propMatch;
+    
+    while ((propMatch = propertyRegex.exec(content)) !== null) {
+      const propType = propMatch[1];
+      const propName = propMatch[2];
+      
+      result.ui.elements.push({
+        type: 'SubviewHeader',
+        name: propType,
+        text: '📦 ' + propType + ' (' + propName + ')',
+        layout: 'property'
+      });
+    }
+    
+    // 2. 检测 UITableView
+    if (content.includes('UITableView')) {
+      const tableViewMatch = content.match(/UITableView\s*\*\s*(\w+)/);
+      result.ui.elements.push({
+        type: 'UITableView',
+        name: tableViewMatch ? tableViewMatch[1] : 'tableView',
+        style: 'plain',
+        layout: 'code'
+      });
+    }
+    
+    // 3. 检测 UICollectionView
+    if (content.includes('UICollectionView')) {
+      result.ui.elements.push({
+        type: 'UICollectionView',
+        name: 'collectionView',
+        style: 'flow',
+        layout: 'code'
+      });
+    }
+    
+    // 4. 检测 WKWebView
+    if (content.includes('WKWebView')) {
+      result.ui.elements.push({
+        type: 'WKWebView',
+        name: 'webView',
+        url: 'https://...',
+        layout: 'code'
+      });
+    }
+    
+    // 5. 解析导航栏标题
+    const titleMatch = content.match(/self\.title\s*=\s*@"([^"]+)"/);
+    if (titleMatch) {
+      result.ui.navigationBar = { title: titleMatch[1] };
+    }
+    
+    // 6. 解析 Masonry 布局的视图
+    if (content.includes('mas_makeConstraints')) {
+      const masonryRegex = /(\w+)\[mas_makeConstraints:/g;
+      let match;
+      
+      while ((match = masonryRegex.exec(content)) !== null) {
+        const beforeMatch = content.substring(Math.max(0, match.index - 50), match.index);
+        const nameMatch = beforeMatch.match(/(\w+)\s*$/);
+        
+        if (nameMatch) {
+          const viewName = nameMatch[1];
+          const typeRegex = new RegExp(`(\\w+)\\s*\\*\\s*${viewName}\\s*[=;]`, 'g');
+          const typeMatch = typeRegex.exec(content);
+          
+          if (typeMatch) {
+            const viewType = typeMatch[1];
+            
+            if (viewType.includes('UILabel')) {
+              result.ui.elements.push({ type: 'UILabel', name: viewName, layout: 'masonry' });
+            } else if (viewType.includes('UIButton')) {
+              result.ui.elements.push({ type: 'UIButton', name: viewName, layout: 'masonry' });
+            } else if (viewType.includes('UITextField')) {
+              result.ui.elements.push({ type: 'UITextField', name: viewName, layout: 'masonry' });
+            } else if (viewType.includes('View')) {
+              result.ui.elements.push({
+                type: 'SubviewHeader',
+                name: viewType,
+                text: '📦 ' + viewType + ' (' + viewName + ')',
+                layout: 'masonry'
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  // 占位数据
+  if (result.ui.elements.length === 0 && !result.ui.navigationBar) {
+    const viewName = fileName.replace(/\.m$/, '').replace(/ViewController/g, '');
+    result.ui.navigationBar = { title: viewName || '页面', backTitle: '返回' };
+    result.ui.elements = [
+      { type: 'UILabel', text: '👋 欢迎使用 ' + viewName },
+      { type: 'UITextField', placeholder: '请输入用户名...' },
+      { type: 'UITextField', placeholder: '请输入密码...' },
+      { type: 'UIButton', title: '🔐 登录' },
+      { type: 'UITableView', style: 'plain' }
+    ];
+    result.parseMethod = 'placeholder';
+    result.debug = {
+      message: '未解析到实际 UI 代码，使用占位数据',
+      reason: '可能是纯逻辑 VC 或使用 SwiftUI/Storyboard',
+      suggestion: '建议检查代码中是否有 UIView 布局代码'
+    };
+  } else {
+    result.parseMethod = result.parseMethod || 'mixed';
+  }
+  
+  return result;
+}
+
+// ==================== Git 相关 API ====================
+
+// 获取 Git 状态详情（含 Hash）
+app.post('/api/git/status-detail', auth.requireAuth, async (req, res) => {
+  try {
+    const { path: projectPath } = req.body;
+    if (!projectPath) return res.status(400).json({ success: false, error: '项目路径不能为空' });
+    
+    const { execSync } = require('child_process');
+    
+    // 获取当前分支
+    const branch = execSync(`git branch --show-current`, { cwd: projectPath, encoding: 'utf-8' }).trim();
+    
+    // 获取当前 Hash
+    const hash = execSync(`git rev-parse --short HEAD`, { cwd: projectPath, encoding: 'utf-8' }).trim();
+    
+    // 获取提交记录
+    const log = execSync(`git log -n 5 --pretty=format:"%h|%s|%ai"`, { cwd: projectPath, encoding: 'utf-8' });
+    const commits = log.split('\n').map(line => {
+      const [hash, message, time] = line.split('|');
+      return { hash, message, time };
+    });
+    
+    // 获取本地修改状态
+    const status = execSync(`git status --porcelain`, { cwd: projectPath, encoding: 'utf-8' }).trim();
+    const hasLocalChanges = status.length > 0;
+    
+    res.json({
+      success: true,
+      data: {
+        branch,
+        hash,
+        commits,
+        hasLocalChanges,
+        status: status || null
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 获取简化 Git 状态
+app.post('/api/git/status', auth.requireAuth, async (req, res) => {
+  try {
+    const { path: projectPath } = req.body;
+    if (!projectPath) return res.status(400).json({ success: false, error: '项目路径不能为空' });
+    
+    const { execSync } = require('child_process');
+    
+    // 获取当前分支
+    const branch = execSync(`git branch --show-current`, { cwd: projectPath, encoding: 'utf-8' }).trim();
+    
+    // 获取提交记录
+    const log = execSync(`git log -n 3 --pretty=format:"%h|%s|%ai"`, { cwd: projectPath, encoding: 'utf-8' });
+    const commits = log.split('\n').map(line => {
+      const [hash, message, time] = line.split('|');
+      return { hash, message, time };
+    });
+    
+    res.json({
+      success: true,
+      data: { branch, commits }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 拉取最新代码
+app.post('/api/git/pull', auth.requireAuth, async (req, res) => {
+  try {
+    const { path: projectPath } = req.body;
+    if (!projectPath) return res.status(400).json({ success: false, error: '项目路径不能为空' });
+    
+    const { execSync } = require('child_process');
+    
+    // 执行 git pull
+    const output = execSync(`git pull`, { cwd: projectPath, encoding: 'utf-8' });
+    
+    res.json({
+      success: true,
+      message: '代码拉取成功',
+      output: output
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ==================== 可视化相关 API ====================
+
+// 获取上次可视化结果（缓存）
+app.get('/api/visualization/last', auth.requireAuth, (req, res) => {
+  try {
+    const { path: projectPath } = req.query;
+    if (!projectPath) return res.status(400).json({ success: false, error: '项目路径不能为空' });
+    
+    const cache = db.db.prepare('SELECT * FROM visualization_cache WHERE project_path = ?').get(projectPath);
+    
+    if (cache) {
+      res.json({
+        success: true,
+        data: JSON.parse(cache.raw_data),
+        cached: true,
+        cachedAt: cache.updated_at
+      });
+    } else {
+      res.json({ success: false, error: '没有缓存数据', cached: false });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 生成可视化数据
+app.post('/api/visualization/generate', auth.requireAuth, async (req, res) => {
+  try {
+    const { path: projectPath, type } = req.body;
+    if (!projectPath) return res.status(400).json({ success: false, error: '项目路径不能为空' });
+    
+    const visualization = await generateVisualization(projectPath);
+    
+    // 保存到缓存
+    const { execSync } = require('child_process');
+    const gitHash = execSync(`git rev-parse HEAD`, { cwd: projectPath, encoding: 'utf-8' }).trim();
+    const gitBranch = execSync(`git branch --show-current`, { cwd: projectPath, encoding: 'utf-8' }).trim();
+    const gitStatus = execSync(`git status --porcelain`, { cwd: projectPath, encoding: 'utf-8' }).trim();
+    const hasLocalChanges = gitStatus.length > 0 ? 1 : 0;
+    
+    db.db.prepare(`
+      INSERT OR REPLACE INTO visualization_cache 
+      (project_path, git_hash, git_branch, has_local_changes, raw_data, updated_at)
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(projectPath, gitHash, gitBranch, hasLocalChanges, JSON.stringify(visualization));
+    
+    res.json({ success: true, data: visualization });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 生成可视化数据（简化版）
+async function generateVisualization(projectPath) {
+  const fs = require('fs');
+  const path = require('path');
+  
+  // 排除的目录
+  const excludedDirs = ['Pods', 'Vendors', 'node_modules', '.git', 'build'];
+  
+  // 扫描代码文件
+  function scanDir(dirPath) {
+    const result = { files: [], modules: {} };
+    
+    try {
+      const items = fs.readdirSync(dirPath);
+      items.forEach(item => {
+        if (item.startsWith('.') || excludedDirs.includes(item)) return;
+        
+        const itemPath = path.join(dirPath, item);
+        const stat = fs.statSync(itemPath);
+        
+        if (stat.isDirectory()) {
+          const subResult = scanDir(itemPath);
+          result.modules[item] = subResult.files;
+          result.files.push(...subResult.files);
+        } else if (item.endsWith('.m') || item.endsWith('.swift')) {
+          result.files.push({
+            name: item,
+            path: itemPath,
+            lines: fs.readFileSync(itemPath, 'utf-8').split('\n').length
+          });
+        }
+      });
+    } catch (e) {
+      console.error('扫描目录失败:', e.message);
+    }
+    
+    return result;
+  }
+  
+  const scanResult = scanDir(projectPath);
+  
+  return {
+    projectName: path.basename(projectPath),
+    projectPath: projectPath,
+    totalFiles: scanResult.files.length,
+    totalLines: scanResult.files.reduce((sum, f) => sum + f.lines, 0),
+    modules: Object.keys(scanResult.modules).length,
+    files: scanResult.files.slice(0, 100), // 只返回前 100 个文件
+    modules: scanResult.modules
+  };
+}

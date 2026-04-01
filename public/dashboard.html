@@ -350,7 +350,12 @@ function renderProjectStatus() {
         <div>
           <strong><i class="bi bi-${icon}"></i> ${escapeHtml(p.name)}</strong>
         </div>
-        <div>${(currentUser.role === 'admin' || currentUser.role === 'developer') ? `<button class="btn btn-sm btn-outline-primary" onclick="pullCode(${p.id})" title="拉取最新代码"><i class="bi bi-download"></i> 拉取</button>` : ''}</div>
+        <div>
+          ${(currentUser.role === 'admin' || currentUser.role === 'developer') ? `<button class="btn btn-sm btn-outline-primary me-1" onclick="pullCode(${p.id})" title="拉取最新代码"><i class="bi bi-download"></i> 拉取</button>` : ''}
+          ${(currentUser.role === 'admin' || currentUser.role === 'developer') && p.type === 'ios' ? `<button class="btn btn-sm btn-outline-success me-1" onclick="openAnalysis('${escapeHtml(p.name)}', '${escapeHtml(p.path)}')" title="AI 代码分析"><i class="bi bi-cpu"></i> AI 分析</button>` : ''}
+          ${(currentUser.role === 'admin' || currentUser.role === 'developer') && p.type === 'ios' ? `<button class="btn btn-sm btn-outline-info me-1" onclick="openVisualization('${escapeHtml(p.name)}', '${escapeHtml(p.path)}')" title="代码可视化"><i class="bi bi-bar-chart-line"></i> 可视化</button>` : ''}
+          ${(currentUser.role === 'admin' || currentUser.role === 'developer') && p.type === 'ios' ? `<button class="btn btn-sm btn-outline-primary" onclick="openUIInterface('${escapeHtml(p.name)}', '${escapeHtml(p.path)}')" title="UI 界面"><i class="bi bi-layout-text-window"></i> UI 界面</button>` : ''}
+        </div>
       </div>
       <div class="project-item-body">
         <div class="small text-muted"><i class="bi bi-git"></i> 分支：<span class="text-primary fw-bold" id="branch-${p.id}"><i class="bi bi-hourglass-split"></i> 获取中...</span></div>
@@ -799,6 +804,45 @@ function pullCode(projectId) {
     },
     error: function() { hideLoading(); alert('拉取失败'); }
   });
+}
+
+// 打开 AI 分析页面
+function openAnalysis(projectName, projectPath) {
+  const url = '/analysis.html?name=' + encodeURIComponent(projectName) + '&path=' + encodeURIComponent(projectPath);
+  const newWin = window.open(url, '_blank');
+  
+  // 传递 token 到新窗口
+  if (newWin) {
+    setTimeout(() => {
+      newWin.localStorage.setItem('aibug_token', currentToken);
+    }, 500);
+  }
+}
+
+// 打开可视化页面
+function openVisualization(projectName, projectPath) {
+  const url = '/visualization.html?name=' + encodeURIComponent(projectName) + '&path=' + encodeURIComponent(projectPath);
+  const newWin = window.open(url, '_blank');
+  
+  // 传递 token 到新窗口
+  if (newWin) {
+    setTimeout(() => {
+      newWin.localStorage.setItem('aibug_token', currentToken);
+    }, 500);
+  }
+}
+
+// 打开 UI 界面页面
+function openUIInterface(projectName, projectPath) {
+  const url = '/ui-interface.html?name=' + encodeURIComponent(projectName) + '&path=' + encodeURIComponent(projectPath);
+  const newWin = window.open(url, '_blank');
+  
+  // 传递 token 到新窗口
+  if (newWin) {
+    setTimeout(() => {
+      newWin.localStorage.setItem('aibug_token', currentToken);
+    }, 500);
+  }
 }
 
 function showProjectConfig() {

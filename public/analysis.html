@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 代码分析 - AIBug</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+    .main-container { max-width: 1400px; margin: 0 auto; }
+    .card { border: none; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); margin-bottom: 20px; }
+    .card-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px 15px 0 0 !important; padding: 20px; font-weight: 600; }
+    .btn-analyze { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: white; padding: 12px 30px; font-size: 1.1rem; }
+    .btn-analyze:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(56,239,125,0.4); }
+    .btn-analyze:disabled { background: #ccc; transform: none; box-shadow: none; }
+    .metric-card { text-align: center; padding: 20px; border-radius: 10px; background: #f8f9fa; }
+    .metric-value { font-size: 2rem; font-weight: 700; color: #667eea; }
+    .metric-label { color: #6c757d; font-size: 0.9rem; margin-top: 5px; }
+    .module-item { border-left: 4px solid #667eea; padding: 15px; margin: 10px 0; background: white; border-radius: 8px; }
+    .module-item.high { border-left-color: #dc3545; }
+    .module-item.medium { border-left-color: #ffc107; }
+    .module-item.low { border-left-color: #28a745; }
+    .complexity-badge { padding: 3px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
+    .complexity-high { background: #f8d7da; color: #721c24; }
+    .complexity-medium { background: #fff3cd; color: #856404; }
+    .complexity-low { background: #d4edda; color: #155724; }
+    #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 9999; }
+    .back-btn { position: absolute; right: 20px; top: 20px; }
+    .commit-item { border-left: 3px solid #667eea; padding-left: 15px; margin: 8px 0; }
+    .commit-hash { font-family: monospace; background: #e9ecef; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; color: #495057; }
+    .commit-time { color: #6c757d; font-size: 0.75rem; margin-left: 8px; }
+    .commit-message { margin-top: 4px; color: #495057; }
+  </style>
+</head>
+<body>
+  <div id="loadingOverlay">
+    <div class="text-center text-white">
+      <div class="spinner-border mb-3" style="width: 3rem; height: 3rem;"></div>
+      <div id="loadingText">处理中...</div>
+      <div id="loadingSubtext" class="text-muted small mt-2"></div>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <button class="btn btn-outline-light back-btn" onclick="window.close()"><i class="bi bi-x-lg"></i> 关闭</button>
+    
+    <div class="text-center mb-4 pt-3">
+      <h1 class="text-white fw-bold"><i class="bi bi-cpu"></i> AI 代码分析</h1>
+      <p class="text-white-50">iOS 项目静态代码分析</p>
+    </div>
+
+    <!-- 项目信息 -->
+    <div class="card">
+      <div class="card-header"><i class="bi bi-info-circle"></i> 项目信息</div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <p><strong><i class="bi bi-folder"></i> 项目名称:</strong> <span id="projectName">-</span></p>
+            <p><strong><i class="bi bi-folder2-open"></i> 项目路径:</strong> <span id="projectPath">-</span></p>
+            <p><strong><i class="bi bi-git"></i> 当前分支:</strong> <span id="currentBranch" class="text-primary fw-bold"><i class="bi bi-hourglass-split"></i> 获取中...</span></p>
+          </div>
+          <div class="col-md-6">
+            <div id="commitsList"></div>
+          </div>
+        </div>
+        <div class="row mt-3">
+          <div class="col text-end">
+            <button class="btn btn-outline-primary me-2" onclick="pullLatest()"><i class="bi bi-download"></i> 拉取最新代码</button>
+            <button class="btn btn-analyze" id="analyzeBtn" onclick="startAnalysis()"><i class="bi bi-search"></i> 开始静态分析</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 分析结果（初始隐藏） -->
+    <div id="analysisResults" style="display: none;">
+      <!-- 概览 -->
+      <div class="card">
+        <div class="card-header"><i class="bi bi-speedometer2"></i> 项目概览</div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-3">
+              <div class="metric-card">
+                <div class="metric-value" id="totalFiles">-</div>
+                <div class="metric-label">📁 文件数</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="metric-card">
+                <div class="metric-value" id="totalLines">-</div>
+                <div class="metric-label">📝 代码行数</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="metric-card">
+                <div class="metric-value" id="avgComplexity">-</div>
+                <div class="metric-label">⏱️ 平均复杂度</div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="metric-card">
+                <div class="metric-value" id="healthScore">-</div>
+                <div class="metric-label">💚 健康度</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 模块分析 -->
+      <div class="card">
+        <div class="card-header"><i class="bi bi-diagram-3"></i> 模块分析</div>
+        <div class="card-body">
+          <div id="moduleList"></div>
+        </div>
+      </div>
+
+      <!-- Top 复杂文件 -->
+      <div class="card">
+        <div class="card-header"><i class="bi bi-exclamation-triangle"></i> Top 10 复杂文件</div>
+        <div class="card-body">
+          <div id="topComplexFiles"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+  <script>
+    let projectName, projectPath, currentToken;
+
+    $(document).ready(function() {
+      // 获取 URL 参数
+      const params = new URLSearchParams(window.location.search);
+      projectName = params.get('name') || 'Unknown';
+      projectPath = params.get('path') || '';
+      
+      $('#projectName').text(projectName);
+      $('#projectPath').text(projectPath);
+      
+      // 获取 token
+      currentToken = localStorage.getItem('aibug_token');
+      if (!currentToken) {
+        currentToken = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+      }
+      
+      if (!currentToken) {
+        alert('❌ 请先登录！');
+        setTimeout(() => { window.location.href = '/login.html'; }, 2000);
+        return;
+      }
+      
+      // 加载 Git 状态
+      loadGitStatus();
+      
+      // 加载上次分析结果
+      loadLastAnalysis();
+    });
+
+    function showLoading(text, subtext = '') {
+      $('#loadingText').text(text);
+      $('#loadingSubtext').text(subtext);
+      $('#loadingOverlay').css('display', 'flex');
+    }
+
+    function hideLoading() {
+      $('#loadingOverlay').hide();
+    }
+
+    // 加载 Git 状态（分支 + 提交）
+    function loadGitStatus() {
+      $.ajax({
+        url: '/api/git/status',
+        method: 'POST',
+        headers: { 
+          'Authorization': 'Bearer ' + currentToken,
+          'Content-Type': 'application/json'
+        },
+        data: JSON.stringify({ path: projectPath }),
+        success: function(res) {
+          if (res.success) {
+            // 显示当前分支
+            $('#currentBranch').text(res.data.branch || '未知');
+            
+            // 显示提交记录
+            if (res.data.commits && res.data.commits.length > 0) {
+              let commitsHtml = '<strong class="small text-muted"><i class="bi bi-clock-history"></i> 最近提交:</strong>';
+              res.data.commits.slice(0, 2).forEach(commit => {
+                const time = new Date(commit.time).toLocaleString('zh-CN');
+                commitsHtml += `<div class="commit-item">
+                  <div><span class="commit-hash">${escapeHtml(commit.hash)}</span> <span class="commit-time">${escapeHtml(time)}</span></div>
+                  <div class="commit-message small text-muted">${escapeHtml(commit.message)}</div>
+                </div>`;
+              });
+              $('#commitsList').html(commitsHtml);
+            } else {
+              $('#commitsList').html('<div class="small text-muted">无提交记录</div>');
+            }
+          } else {
+            $('#currentBranch').html('<span class="text-danger">加载失败</span>');
+            $('#commitsList').html('<div class="small text-danger">加载失败</div>');
+          }
+        },
+        error: function() {
+          $('#currentBranch').html('<span class="text-danger">加载失败</span>');
+          $('#commitsList').html('<div class="small text-danger">加载失败</div>');
+        }
+      });
+    }
+
+    async function pullLatest() {
+      if (!confirm('确定拉取最新代码？')) return;
+      
+      showLoading('拉取代码中...', '请稍候');
+      
+      try {
+        const res = await fetch('/api/git/pull', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + currentToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ path: projectPath })
+        });
+        
+        const data = await res.json();
+        hideLoading();
+        
+        if (data.success) {
+          alert('✅ 拉取成功！\n\n' + data.message);
+          loadGitStatus(); // 重新加载 Git 状态
+        } else {
+          alert('❌ 拉取失败：' + data.error);
+        }
+      } catch (err) {
+        hideLoading();
+        alert('❌ 拉取失败：' + err.message);
+      }
+    }
+
+    async function startAnalysis() {
+      $('#analyzeBtn').prop('disabled', true);
+      showLoading('正在分析代码...', '📊 统计代码行数 → 🔍 分析模块复杂度 → 📈 生成报告');
+      
+      try {
+        const res = await fetch('/api/analysis/analyze', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + currentToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ path: projectPath, type: 'ios' })
+        });
+        
+        const data = await res.json();
+        hideLoading();
+        
+        if (data.success) {
+          displayResults(data.results);
+          $('#analysisResults').attr('data-is-new-analysis', 'true');
+        } else {
+          alert('❌ 分析失败：' + data.error);
+        }
+      } catch (err) {
+        hideLoading();
+        alert('❌ 分析失败：' + err.message);
+      } finally {
+        $('#analyzeBtn').prop('disabled', false);
+      }
+    }
+
+    function displayResults(results) {
+      $('#analysisResults').show();
+      
+      // 清除之前的时间显示
+      $('#analysisResults .card-header .text-muted').remove();
+      
+      // 显示分析时间
+      const analyzedAt = results.analyzedAt ? new Date(results.analyzedAt).toLocaleString('zh-CN') : '刚刚';
+      const isNew = $('#analysisResults').attr('data-is-new-analysis') === 'true';
+      const timeLabel = isNew ? '✅ 分析完成时间：' : '📅 上次分析时间：';
+      
+      // 在概览卡片头部添加时间
+      const timeHtml = `<div class="text-muted small mb-2">${timeLabel}${analyzedAt}</div>`;
+      $('#analysisResults .card-header').first().prepend(timeHtml);
+      
+      // 概览
+      $('#totalFiles').text(results.summary.totalFiles || 0);
+      $('#totalLines').text(results.summary.totalLines?.toLocaleString() || 0);
+      $('#avgComplexity').text(results.summary.avgComplexity || 0);
+      $('#healthScore').text(results.summary.healthScore || 0);
+      
+      // 模块分析
+      let modulesHtml = '';
+      if (results.modules && results.modules.length > 0) {
+        results.modules.forEach(mod => {
+          const levelClass = mod.complexity > 20 ? 'high' : mod.complexity > 10 ? 'medium' : 'low';
+          const badgeClass = mod.complexity > 20 ? 'complexity-high' : mod.complexity > 10 ? 'complexity-medium' : 'complexity-low';
+          const badgeText = mod.complexity > 20 ? '高' : mod.complexity > 10 ? '中' : '低';
+          
+          modulesHtml += `
+            <div class="module-item ${levelClass}">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <strong><i class="bi bi-folder"></i> ${escapeHtml(mod.name)}</strong>
+                  <div class="text-muted small mt-1">
+                    <i class="bi bi-file-code"></i> ${mod.files} 文件 · 
+                    <i class="bi bi-text-paragraph"></i> ${mod.lines?.toLocaleString()} 行
+                  </div>
+                </div>
+                <span class="complexity-badge ${badgeClass}">复杂度：${mod.complexity} (${badgeText})</span>
+              </div>
+            </div>
+          `;
+        });
+      }
+      $('#moduleList').html(modulesHtml || '<p class="text-muted">暂无数据</p>');
+      
+      // Top 复杂文件
+      let topFilesHtml = '';
+      if (results.topComplexFiles && results.topComplexFiles.length > 0) {
+        results.topComplexFiles.forEach((file, i) => {
+          const icon = file.complexity > 30 ? '🔴' : file.complexity > 20 ? '🟠' : '🟡';
+          topFilesHtml += `
+            <div class="module-item">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <strong>${icon} ${i + 1}. ${escapeHtml(file.name)}</strong>
+                  <div class="text-muted small mt-1">
+                    <i class="bi bi-text-paragraph"></i> ${file.lines} 行 · 
+                    <i class="bi bi-function"></i> ${file.functions} 函数
+                  </div>
+                </div>
+                <span class="complexity-badge complexity-high">复杂度：${file.complexity}</span>
+              </div>
+            </div>
+          `;
+        });
+      }
+      $('#topComplexFiles').html(topFilesHtml || '<p class="text-muted">暂无数据</p>');
+    }
+
+    // 加载上次分析结果
+    function loadLastAnalysis() {
+      $.ajax({
+        url: '/api/analysis/last',
+        method: 'GET',
+        headers: { 'Authorization': 'Bearer ' + currentToken },
+        data: { path: projectPath },
+        success: function(res) {
+          if (res.success && res.results) {
+            displayResults(res.results);
+            $('#analysisResults').attr('data-has-last-analysis', 'true');
+          }
+        }
+      });
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text.toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>代码可视化 - AIBug</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <style>
+    body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+    .main-container { max-width: 1600px; margin: 0 auto; }
+    .card { border: none; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); margin-bottom: 20px; }
+    .card-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px 15px 0 0 !important; padding: 20px; font-weight: 600; }
+    .btn-pull { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: white; padding: 10px 25px; }
+    .btn-analyze { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: white; padding: 10px 25px; }
+    .back-btn { position: absolute; right: 20px; top: 20px; }
+    .commit-item { border-left: 3px solid #667eea; padding-left: 15px; margin: 8px 0; }
+    .metric-card { text-align: center; padding: 20px; border-radius: 10px; background: #f8f9fa; }
+    .metric-value { font-size: 2rem; font-weight: 700; color: #667eea; }
+    .metric-label { color: #6c757d; font-size: 0.9rem; margin-top: 5px; }
+    .chart-container { height: 500px; }
+    .file-tree { max-height: 500px; overflow-y: auto; }
+    .tree-node { padding: 8px 12px; margin: 4px 0; border-radius: 6px; }
+    .tree-node.folder { font-weight: 600; }
+    .tree-node.file { padding-left: 32px; font-size: 0.9rem; }
+    .tree-node .lines { float: right; color: #6c757d; font-size: 0.85rem; }
+    #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 9999; }
+    #logContainer { background: #1e1e1e; color: #d4d4d4; padding: 15px; border-radius: 8px; max-height: 250px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.8rem; margin-top: 20px; display: none; text-align: left; border: 1px solid #3c3c3c; }
+    .log-line { margin: 3px 0; padding: 2px 0; }
+    .log-info { color: #4ec9b0; }
+    .log-warn { color: #ce9178; }
+    .log-error { color: #f44747; background: rgba(244,71,71,0.1); padding: 5px; border-radius: 4px; }
+    .log-success { color: #6a9955; }
+  </style>
+</head>
+<body>
+  <div id="loadingOverlay">
+    <div class="text-center text-white" style="max-width: 700px;">
+      <div class="spinner-border mb-3" style="width: 3rem; height: 3rem;" id="loadingSpinner"></div>
+      <div id="loadingText" class="h4">处理中...</div>
+      
+      <!-- 进度条 -->
+      <div class="progress mt-3" style="height: 25px; border-radius: 15px; background: rgba(255,255,255,0.2);" id="progressContainer">
+        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+             role="progressbar" style="width: 0%; background: linear-gradient(90deg, #11998e, #38ef7d); border-radius: 15px;">
+          <span id="progressText" class="small fw-bold">0%</span>
+        </div>
+      </div>
+      
+      <div id="loadingSubtext" class="text-muted small mt-2"></div>
+      
+      <!-- 日志区域 -->
+      <div id="logContainer" class="text-start"></div>
+      
+      <!-- 完成按钮（分析完成后显示） -->
+      <button id="finishBtn" class="btn btn-success mt-3" onclick="finishAnalysis()" style="display: none;">
+        <i class="bi bi-check-circle"></i> 完成
+      </button>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <button class="btn btn-outline-light back-btn" onclick="window.close()"><i class="bi bi-x-lg"></i> 关闭</button>
+    
+    <div class="text-center mb-4 pt-3">
+      <h1 class="text-white fw-bold"><i class="bi bi-bar-chart-line"></i> 代码可视化</h1>
+      <p class="text-white-50">项目结构可视化分析</p>
+    </div>
+
+    <!-- 项目信息 -->
+    <div class="card">
+      <div class="card-header"><i class="bi bi-info-circle"></i> 项目信息</div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <p><strong><i class="bi bi-folder"></i> 项目名称:</strong> <span id="projectName">-</span></p>
+            <p><strong><i class="bi bi-folder2-open"></i> 项目路径:</strong> <span id="projectPath">-</span></p>
+            <p><strong><i class="bi bi-git"></i> 当前分支:</strong> <span id="currentBranch" class="text-primary fw-bold"><i class="bi bi-hourglass-split"></i> 获取中...</span></p>
+          </div>
+          <div class="col-md-6">
+            <div id="commitsList"></div>
+          </div>
+        </div>
+        <div class="row mt-3">
+          <div class="col text-end">
+            <button class="btn btn-pull me-2" onclick="pullLatest()"><i class="bi bi-download"></i> 拉取最新代码</button>
+            <button class="btn btn-analyze" id="analyzeBtn" onclick="startAnalysis()"><i class="bi bi-play-fill"></i> <span id="analyzeBtnText">开始分析</span></button>
+          </div>
+        </div>
+        <div class="row mt-2">
+          <div class="col text-end">
+            <small class="text-muted" id="lastAnalyzedTime"></small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 项目概览 -->
+    <div class="card" id="overviewCard" style="display: none;">
+      <div class="card-header"><i class="bi bi-speedometer2"></i> 项目概览</div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-2">
+            <div class="metric-card">
+              <div class="metric-value" id="totalFiles">-</div>
+              <div class="metric-label">📁 文件数</div>
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="metric-card">
+              <div class="metric-value" id="totalLines">-</div>
+              <div class="metric-label">📝 代码行数</div>
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="metric-card">
+              <div class="metric-value" id="objcFiles">-</div>
+              <div class="metric-label">🔵 OC 文件</div>
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="metric-card">
+              <div class="metric-value" id="swiftFiles">-</div>
+              <div class="metric-label">🟣 Swift 文件</div>
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="metric-card">
+              <div class="metric-value" id="avgComplexity">-</div>
+              <div class="metric-label">⏱️ 平均复杂度</div>
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="metric-card">
+              <div class="metric-value" id="healthScore">-</div>
+              <div class="metric-label">💚 健康度</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 可视化区域 -->
+    <div class="row" id="visualizationRow" style="display: none;">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-folder2-open"></i> 项目结构树</span>
+            <button class="btn btn-sm btn-outline-light" onclick="analyzeChart('tree')"><i class="bi bi-arrow-clockwise"></i> 单独分析</button>
+          </div>
+          <div class="card-body">
+            <div class="file-tree" id="fileTree"></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-pie-chart"></i> 代码分布旭日图</span>
+            <button class="btn btn-sm btn-outline-light" onclick="analyzeChart('sunburst')"><i class="bi bi-arrow-clockwise"></i> 单独分析</button>
+          </div>
+          <div class="card-body">
+            <div id="sunburstChart" class="chart-container"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 模块依赖关系图 -->
+    <div class="card" id="dependencyCard" style="display: none;">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-diagram-3"></i> 模块依赖关系图</span>
+        <button class="btn btn-sm btn-outline-light" onclick="analyzeChart('dependency')"><i class="bi bi-arrow-clockwise"></i> 单独分析</button>
+      </div>
+      <div class="card-body">
+        <div id="dependencyGraph" class="chart-container" style="height: 400px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+  <script>
+    let projectName, projectPath, currentToken;
+
+    $(document).ready(function() {
+      const params = new URLSearchParams(window.location.search);
+      projectName = params.get('name') || 'Unknown';
+      projectPath = params.get('path') || '';
+      
+      $('#projectName').text(projectName);
+      $('#projectPath').text(projectPath);
+      
+      currentToken = localStorage.getItem('aibug_token');
+      if (!currentToken) {
+        currentToken = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+      }
+      
+      if (!currentToken) {
+        alert('❌ 请先登录！');
+        setTimeout(() => { window.location.href = '/login.html'; }, 2000);
+        return;
+      }
+      
+      loadGitStatus();
+      loadCachedData();
+    });
+
+    function showLoading(text, subtext = '') {
+      $('#loadingText').text(text);
+      $('#loadingSubtext').text(subtext);
+      $('#loadingOverlay').css('display', 'flex');
+      $('#logContainer').hide().empty();
+    }
+
+    function hideLoading() {
+      // 不立即隐藏，显示完成按钮
+      $('#loadingSpinner').hide();
+      $('#progressContainer').hide();
+      $('#loadingText').text('✅ 分析完成！');
+      $('#loadingSubtext').text('查看下方日志了解详细信息');
+      $('#finishBtn').show();
+    }
+
+    function finishAnalysis() {
+      $('#loadingOverlay').fadeOut(500);
+    }
+
+    function addLog(message, type = 'info') {
+      const logClass = 'log-' + type;
+      const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warn' ? '⚠️' : 'ℹ️';
+      const timestamp = new Date().toLocaleTimeString('zh-CN');
+      $('#logContainer').append(`<div class="log-line ${logClass}"><small class="text-muted">[${timestamp}]</small> ${icon} ${message}</div>`).show();
+      $('#logContainer').scrollTop($('#logContainer')[0].scrollHeight);
+    }
+
+    function updateProgress(percent, text) {
+      $('#progressBar').css('width', percent + '%');
+      $('#progressText').text(percent + '%');
+      if (text) $('#loadingSubtext').text(text);
+    }
+
+    function loadCachedData() {
+      console.log('📥 加载缓存数据，projectPath:', projectPath);
+      
+      $.ajax({
+        url: '/api/visualization/last',
+        method: 'GET',
+        data: { path: projectPath },
+        headers: { 'Authorization': 'Bearer ' + currentToken },
+        success: function(res) {
+          console.log('📥 缓存响应:', res);
+          
+          if (res.success && res.data) {
+            console.log('✅ 找到缓存数据，渲染中...');
+            displayVisualization(res.data);
+            const analyzedAt = res.data.analyzedAt ? new Date(res.data.analyzedAt).toLocaleString('zh-CN') : '刚刚';
+            $('#lastAnalyzedTime').html(`📅 上次分析：${analyzedAt}`);
+            checkGitStatus(res.data);
+          } else {
+            console.log('⚠️ 无缓存数据');
+            $('#lastAnalyzedTime').html('⚠️ 暂无分析数据，请点击"开始分析"');
+            checkGitStatus(null);
+          }
+        },
+        error: function(xhr, status, err) {
+          console.error('❌ 加载缓存失败:', err);
+          $('#lastAnalyzedTime').html('⚠️ 加载失败');
+        }
+      });
+    }
+
+    function loadGitStatus() {
+      $.ajax({
+        url: '/api/git/status-detail',
+        method: 'POST',
+        headers: { 
+          'Authorization': 'Bearer ' + currentToken,
+          'Content-Type': 'application/json'
+        },
+        data: JSON.stringify({ path: projectPath }),
+        success: function(res) {
+          if (res.success) {
+            $('#currentBranch').text(res.data.branch || '未知');
+            window.currentGitStatus = res.data;
+            
+            if (res.data.commits && res.data.commits.length > 0) {
+              let commitsHtml = '<strong class="small text-muted"><i class="bi bi-clock-history"></i> 最近提交:</strong>';
+              res.data.commits.slice(0, 2).forEach(commit => {
+                const time = new Date(commit.time).toLocaleString('zh-CN');
+                commitsHtml += `<div class="commit-item">
+                  <div><span class="commit-hash">${escapeHtml(commit.hash)}</span> <span class="commit-time">${escapeHtml(time)}</span></div>
+                  <div class="commit-message small text-muted">${escapeHtml(commit.message)}</div>
+                </div>`;
+              });
+              $('#commitsList').html(commitsHtml);
+            }
+          }
+        }
+      });
+    }
+
+    function checkGitStatus(cachedData) {
+      const current = window.currentGitStatus;
+      if (!current) {
+        setButtonState(true, '首次分析');
+        return;
+      }
+      
+      if (!cachedData) {
+        setButtonState(true, '首次分析');
+        return;
+      }
+      
+      const hashChanged = cachedData.cachedGitHash !== current.hash;
+      const branchChanged = cachedData.cachedBranch !== current.branch;
+      const hasNewLocalChanges = current.hasLocalChanges && !cachedData.cachedHasLocalChanges;
+      
+      if (!hashChanged && !branchChanged && !hasNewLocalChanges) {
+        setButtonState(false, '✅ 已是最新');
+      } else {
+        let reason = [];
+        if (hashChanged) reason.push('代码已更新');
+        if (branchChanged) reason.push('分支已切换');
+        if (hasNewLocalChanges) reason.push('有本地修改');
+        setButtonState(true, '🔄 更新分析 (' + reason.join(',') + ')');
+      }
+    }
+
+    function setButtonState(enabled, text) {
+      $('#analyzeBtn').prop('disabled', !enabled);
+      $('#analyzeBtnText').html(text);
+    }
+
+    async function pullLatest() {
+      if (!confirm('确定拉取最新代码？')) return;
+      showLoading('拉取代码中...', '请稍候');
+      
+      try {
+        const res = await fetch('/api/git/pull', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + currentToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ path: projectPath })
+        });
+        
+        const data = await res.json();
+        hideLoading();
+        
+        if (data.success) {
+          alert('✅ 拉取成功！\n\n' + data.message);
+          loadGitStatus();
+          loadCachedData();
+        } else {
+          alert('❌ 拉取失败：' + data.error);
+        }
+      } catch (err) {
+        hideLoading();
+        alert('❌ 拉取失败：' + err.message);
+      }
+    }
+
+    async function startAnalysis() {
+      await analyzeAllModules();
+    }
+
+    async function analyzeAllModules() {
+      $('#analyzeBtn').prop('disabled', true);
+      showLoading('正在分析...', '📊 准备分析所有模块');
+      addLog('🚀 开始分析项目代码', 'info');
+      
+      try {
+        const res = await fetch('/api/visualization/generate', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + currentToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ path: projectPath, type: 'ios' })
+        });
+        
+        const data = await res.json();
+        
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || '分析失败');
+        }
+        
+        addLog('✅ 分析完成！正在渲染图表...', 'success');
+        hideLoading();
+        
+        displayVisualization(data.data);
+        const now = new Date().toLocaleString('zh-CN');
+        $('#lastAnalyzedTime').html(`✅ 刚刚更新于：${now}`);
+        setButtonState(false, '✅ 分析完成');
+        
+        setTimeout(() => { loadGitStatus(); }, 1000);
+        
+      } catch (err) {
+        hideLoading();
+        addLog('❌ 分析失败：' + err.message, 'error');
+        alert('❌ 分析失败：' + err.message);
+        $('#analyzeBtn').prop('disabled', false);
+        $('#analyzeBtnText').html('重试分析');
+      }
+    }
+
+    async function analyzeModule(moduleName) {
+      if (!confirm(`确定只分析 ${moduleName}/ 模块吗？\n\n这将只分析该模块的代码，并更新整体分析结果。`)) return;
+      
+      showLoading(`正在分析 ${moduleName}/ 模块...`, '📊 单个模块分析');
+      addLog(`🚀 开始分析模块：${moduleName}/`, 'info');
+      
+      try {
+        const res = await fetch('/api/visualization/generate', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + currentToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ path: projectPath, type: 'ios' })
+        });
+        
+        const data = await res.json();
+        
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || '分析失败');
+        }
+        
+        addLog(`✅ ${moduleName}/ 模块分析完成！`, 'success');
+        hideLoading();
+        
+        displayVisualization(data.data);
+        const now = new Date().toLocaleString('zh-CN');
+        $('#lastAnalyzedTime').html(`✅ ${moduleName}/ 更新于：${now}`);
+        
+        setTimeout(() => { loadGitStatus(); }, 1000);
+        
+      } catch (err) {
+        hideLoading();
+        addLog(`❌ ${moduleName}/ 分析失败：` + err.message, 'error');
+        alert('❌ 模块分析失败：' + err.message);
+      }
+    }
+
+    async function analyzeChart(chartType) {
+      const chartNames = { 'tree': '项目结构树', 'sunburst': '代码分布旭日图', 'dependency': '模块依赖关系图' };
+      
+      if (!confirm(`确定重新分析 ${chartNames[chartType]} 吗？\n\n这将重新分析所有代码并更新该图表。\n\n预计耗时：1-3 分钟`)) return;
+      
+      showLoading(`正在分析...`, `📊 重新生成 ${chartNames[chartType]}`);
+      updateProgress(0, '准备中...');
+      addLog(`🚀 开始重新分析：${chartNames[chartType]}`, 'info');
+      addLog(`📁 项目路径：${projectPath}`, 'info');
+      
+      try {
+        const res = await fetch('/api/visualization/generate', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + currentToken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ path: projectPath, type: 'ios' })
+        });
+        
+        const data = await res.json();
+        
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || '分析失败');
+        }
+        
+        updateProgress(100, '分析完成！');
+        addLog(`✅ ${chartNames[chartType]} 更新完成！`, 'success');
+        addLog(`📊 总计：${data.data.summary.totalFiles} 个文件，${data.data.summary.totalLines.toLocaleString()} 行代码`, 'success');
+        addLog(`📦 模块数：${data.data.summary.moduleCount}`, 'success');
+        addLog(`🔗 依赖关系：${data.data.dependencies.links?.length || 0} 个`, 'success');
+        
+        hideLoading();
+        
+        // 根据类型重新渲染对应图表
+        if (chartType === 'tree') {
+          renderFileTree(data.data.fileTree);
+        } else if (chartType === 'sunburst') {
+          renderSunburst(data.data.fileTree);
+        } else if (chartType === 'dependency') {
+          renderDependencyGraph(data.data.dependencies);
+          addLog(`📈 依赖关系图已渲染，可拖拽节点查看`, 'info');
+        }
+        
+        const now = new Date().toLocaleString('zh-CN');
+        $('#lastAnalyzedTime').html(`✅ 刚刚更新于：${now}`);
+        
+      } catch (err) {
+        hideLoading();
+        addLog(`❌ ${chartNames[chartType]} 分析失败：` + err.message, 'error');
+        alert('❌ 分析失败：' + err.message);
+      }
+    }
+
+    function displayVisualization(data) {
+      if (!data || !data.summary) {
+        alert('❌ 数据格式错误！');
+        console.error('无效数据:', data);
+        return;
+      }
+      
+      $('#overviewCard').show();
+      $('#visualizationRow').show();
+      $('#dependencyCard').show();
+      
+      $('#totalFiles').text(data.summary.totalFiles || 0);
+      $('#totalLines').text((data.summary.totalLines || 0).toLocaleString());
+      $('#objcFiles').text(data.summary.objcFiles || 0);
+      $('#swiftFiles').text(data.summary.swiftFiles || 0);
+      $('#avgComplexity').text(data.summary.avgComplexity || 0);
+      $('#healthScore').text(data.summary.healthScore || 0);
+      
+      const fileTree = data.fileTree || [];
+      const dependencies = data.dependencies || { nodes: [], links: [] };
+      
+      console.log('渲染图表 - fileTree:', fileTree.length, 'modules');
+      console.log('渲染图表 - dependencies:', dependencies.nodes?.length || 0, 'nodes');
+      
+      renderFileTree(fileTree);
+      renderSunburst(fileTree);
+      renderDependencyGraph(dependencies);
+    }
+
+    function renderFileTree(fileTree) {
+      if (!fileTree || !Array.isArray(fileTree) || fileTree.length === 0) {
+        $('#fileTree').html('<p class="text-muted">暂无数据</p>');
+        return;
+      }
+      
+      let html = '';
+      for (const module of fileTree.slice(0, 20)) {
+        if (!module) continue;
+        html += `<div class="tree-node folder" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <i class="bi bi-folder-fill text-warning"></i> ${escapeHtml(module.name)}
+            <span class="lines">${(module.totalLines || 0).toLocaleString()} 行 · ${module.fileCount || 0} 文件</span>
+          </div>
+          <button class="btn btn-sm btn-outline-primary" onclick="analyzeModule('${escapeHtml(module.name)}')" title="只分析这个模块">
+            <i class="bi bi-play-fill"></i> 分析
+          </button>
+        </div>`;
+        if (module.files && Array.isArray(module.files)) {
+          for (const file of module.files.slice(0, 10)) {
+            if (!file) continue;
+            html += `<div class="tree-node file">
+              <i class="bi bi-file-code text-primary"></i> ${escapeHtml(file.name)}
+              <span class="lines">${(file.lines || 0).toLocaleString()}</span>
+            </div>`;
+          }
+        }
+      }
+      $('#fileTree').html(html || '<p class="text-muted">暂无数据</p>');
+    }
+
+    function renderSunburst(fileTree) {
+      if (!fileTree || !Array.isArray(fileTree) || fileTree.length === 0) {
+        const chart = echarts.init(document.getElementById('sunburstChart'));
+        chart.setOption({ series: { type: 'sunburst', data: [] } });
+        return;
+      }
+      
+      const chart = echarts.init(document.getElementById('sunburstChart'));
+      const data = fileTree.slice(0, 20).map(module => ({
+        name: module.name,
+        value: module.totalLines || 0,
+        children: (module.files || []).slice(0, 20).map(f => ({ name: f.name, value: f.lines || 0 }))
+      }));
+      
+      chart.setOption({
+        series: {
+          type: 'sunburst',
+          data: data,
+          radius: [0, '90%'],
+          label: { rotate: 'radial' }
+        }
+      });
+    }
+
+    function renderDependencyGraph(deps) {
+      const chart = echarts.init(document.getElementById("dependencyGraph"));
+      
+      if (!deps || !deps.nodes || !Array.isArray(deps.nodes)) {
+        chart.setOption({ series: [{ type: "graph", data: [], links: [] }] });
+        return;
+      }
+      
+      chart.setOption({
+        tooltip: { formatter: "{b}" },
+        series: [{
+          type: "graph",
+          layout: "force",
+          data: deps.nodes.map(n => ({ 
+            id: n.id || n.name, 
+            name: n.name, 
+            value: n.value || 0, 
+            symbolSize: Math.min(60, Math.max(25, (n.value || 0)/80)),
+            itemStyle: {
+              color: new echarts.graphic.RadialGradient(0.3, 0.3, 0.8, [{
+                offset: 0, color: "#667eea"
+              }, {
+                offset: 1, color: "#764ba2"
+              }])
+            }
+          })),
+          links: (deps.links || []).map(l => ({ 
+            source: l.source, 
+            target: l.target,
+            lineStyle: { color: "#aaa", curveness: 0.2, width: 1.5 }
+          })),
+          force: {
+            repulsion: 400,
+            edgeLength: 150,
+            gravity: 0.1
+          },
+          roam: true,
+          draggable: true,
+          label: { show: true, position: "right", fontSize: 11, color: "#333" },
+          lineStyle: { color: "#999", curveness: 0.2, width: 1.5, opacity: 0.7 },
+          emphasis: { focus: "adjacency", lineStyle: { width: 3, color: "#667eea" } }
+        }]
+      });
+      
+      setTimeout(() => { chart.resize(); }, 100);
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>

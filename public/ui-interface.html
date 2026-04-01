@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UI 界面 - AIBug</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <style>
+    body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+    .main-container { max-width: 1600px; margin: 0 auto; }
+    .card { border: none; border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); margin-bottom: 20px; }
+    .card-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 15px 15px 0 0 !important; padding: 20px; font-weight: 600; }
+    .btn-pull { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: white; padding: 10px 25px; }
+    .back-btn { position: absolute; right: 20px; top: 20px; }
+    .commit-item { border-left: 3px solid #667eea; padding-left: 15px; margin: 8px 0; }
+    .commit-hash { font-family: monospace; background: #e9ecef; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; color: #495057; }
+    .commit-time { color: #6c757d; font-size: 0.75rem; margin-left: 8px; }
+    .commit-message { margin-top: 4px; color: #495057; }
+    #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 9999; }
+    
+    /* 文件树样式 */
+    .file-tree { font-size: 0.9rem; }
+    .tree-node { padding: 6px 10px; margin: 2px 0; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+    .tree-node:hover { background: rgba(102, 126, 234, 0.1); }
+    .tree-node.folder { font-weight: 600; color: #667eea; }
+    .tree-node.folder::before { content: '📁 '; margin-right: 6px; }
+    .tree-node.folder.open::before { content: '📂 '; }
+    .tree-node.file { padding-left: 28px; color: #495057; }
+    .tree-node.file::before { content: '📄 '; margin-right: 6px; }
+    .tree-node.file.vc-file { background: rgba(255, 193, 7, 0.15); border-left: 3px solid #ffc107; }
+    .tree-node.file.vc-file::before { content: '🎨 '; }
+    .tree-children { margin-left: 20px; display: none; }
+    .tree-children.show { display: block; }
+    .vc-badge { display: inline-block; padding: 2px 8px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 12px; font-size: 0.75rem; margin-left: 8px; cursor: pointer; }
+    .vc-badge:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4); }
+    .preview-container { position: relative; margin: 0 auto; background: #1a1a1a; border-radius: 40px; padding: 60px 20px 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); transition: all 0.3s ease; }
+    .preview-container.iphone { width: 375px; height: 667px; }
+    .preview-container.ipad { width: 768px; height: 1024px; border-radius: 50px; padding: 70px 30px 30px; }
+    .preview-screen { width: 100%; height: 100%; background: white; border-radius: 20px; overflow: hidden; }
+    .device-badge { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.5); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div id="loadingOverlay">
+    <div class="text-center text-white">
+      <div class="spinner-border mb-3" style="width: 3rem; height: 3rem;"></div>
+      <div class="h4">处理中...</div>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <button class="btn btn-outline-light back-btn" onclick="window.close()"><i class="bi bi-x-lg"></i> 关闭</button>
+    
+    <div class="text-center mb-4 pt-3">
+      <h1 class="text-white fw-bold"><i class="bi bi-layout-text-window"></i> UI 界面</h1>
+      <p class="text-white-50">UI 界面管理与预览</p>
+    </div>
+
+    <!-- 项目信息 -->
+    <div class="card">
+      <div class="card-header"><i class="bi bi-info-circle"></i> 项目信息</div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <p><strong><i class="bi bi-folder"></i> 项目名称:</strong> <span id="projectName">-</span></p>
+            <p><strong><i class="bi bi-folder2-open"></i> 项目路径:</strong> <span id="projectPath">-</span></p>
+            <p><strong><i class="bi bi-git"></i> 当前分支:</strong> <span id="currentBranch" class="text-primary fw-bold"><i class="bi bi-hourglass-split"></i> 获取中...</span></p>
+          </div>
+          <div class="col-md-6">
+            <div id="commitsList"></div>
+          </div>
+        </div>
+        <div class="row mt-3">
+          <div class="col text-end">
+            <button class="btn btn-pull me-2" onclick="pullLatest()"><i class="bi bi-download"></i> 拉取最新代码</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UI 界面内容区域 -->
+    <div class="row">
+      <!-- 左侧：项目目录树 -->
+      <div class="col-md-5">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-folder2-open"></i> 项目目录</span>
+            <button class="btn btn-sm btn-outline-light" onclick="loadProjectTree()"><i class="bi bi-arrow-clockwise"></i> 刷新</button>
+          </div>
+          <div class="card-body p-0">
+            <div id="projectTree" class="file-tree" style="max-height: 700px; overflow-y: auto; padding: 15px;">
+              <div class="text-center text-muted py-5">
+                <div class="spinner-border spinner-border-sm text-primary"></div>
+                <div class="mt-2 small">加载目录结构...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 右侧：真机模拟器占位 -->
+      <div class="col-md-7">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-phone"></i> UI 预览</span>
+            <!-- 设备切换按钮 -->
+            <div class="btn-group btn-group-sm" role="group">
+              <button type="button" class="btn btn-outline-light" id="btnIPhone" onclick="switchDevice('iphone')">
+                <i class="bi bi-phone"></i> iPhone
+              </button>
+              <button type="button" class="btn btn-outline-light" id="btnIPad" onclick="switchDevice('ipad')">
+                <i class="bi bi-tablet"></i> iPad
+              </button>
+            </div>
+          </div>
+          <div class="card-body">
+            <div id="previewPlaceholder" class="text-center text-muted py-5" style="background: #f8f9fa; border-radius: 10px; min-height: 700px;">
+              <i class="bi bi-phone-landscape" style="font-size: 4rem; opacity: 0.3;"></i>
+              <h5 class="mt-3">真机模拟器</h5>
+              <p>点击左侧 VC 文件的"可视化"按钮预览 UI</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+let currentToken = null;
+let currentProject = { name: '', path: '' };
+
+$(document).ready(function() {
+  // 获取 token
+  currentToken = localStorage.getItem('aibug_token');
+  if (!currentToken) {
+    alert('请先登录');
+    window.close();
+    return;
+  }
+
+  // 获取 URL 参数
+  const urlParams = new URLSearchParams(window.location.search);
+  currentProject.name = urlParams.get('name') || '未知项目';
+  currentProject.path = urlParams.get('path') || '';
+
+  // 显示项目信息
+  $('#projectName').text(currentProject.name);
+  $('#projectPath').text(currentProject.path);
+
+  // 加载 Git 状态
+  loadGitStatus();
+  
+  // 加载项目目录树
+  loadProjectTree();
+});
+
+// 加载项目目录树
+function loadProjectTree() {
+  showLoading('加载目录结构...');
+  $.ajax({
+    url: '/api/ui/project-tree',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'Authorization': 'Bearer ' + currentToken },
+    data: JSON.stringify({ path: currentProject.path }),
+    success: function(res) {
+      hideLoading();
+      if (res.success) {
+        renderProjectTree(res.data);
+      } else {
+        $('#projectTree').html('<div class="text-center text-danger py-3">❌ 加载失败：' + res.error + '</div>');
+      }
+    },
+    error: function() {
+      hideLoading();
+      $('#projectTree').html('<div class="text-center text-danger py-3">❌ 请求失败</div>');
+    }
+  });
+}
+
+// 渲染项目树
+function renderProjectTree(data) {
+  let html = '<div class="tree-root">';
+  html += renderTreeNode(data);
+  html += '</div>';
+  $('#projectTree').html(html);
+}
+
+// 递归渲染树节点
+function renderTreeNode(node, level = 0) {
+  if (!node) return '';
+  
+  let html = '';
+  
+  // 判断是否是 VC 文件（只识别 ViewController，不识别普通 View）
+  const isVCFile = node.type === 'file' && 
+                   (node.name.endsWith('.h') || node.name.endsWith('.m')) &&
+                   (node.name.includes('ViewController')); // 只匹配 ViewController
+  
+  const nodeClass = node.type === 'folder' ? 'folder' : (isVCFile ? 'file vc-file' : 'file');
+  const hasChildren = node.children && node.children.length > 0;
+  
+  html += `<div class="tree-node-item">`;
+  html += `<div class="tree-node ${nodeClass}" onclick="toggleNode(this)" ${node.type === 'folder' ? '' : 'onclick="selectFile(this, \'' + escapeHtml(node.path) + '\')"'}>`;
+  
+  if (node.type === 'folder') {
+    html += `<span>${escapeHtml(node.name)}</span>`;
+  } else {
+    html += `<span>${escapeHtml(node.name)}</span>`;
+    if (isVCFile) {
+      html += `<span class="vc-badge" onclick="event.stopPropagation(); visualizeVC('${escapeHtml(node.path)}')" title="可视化预览">🎨 可视化</span>`;
+    }
+  }
+  
+  html += `</div>`;
+  
+  // 渲染子节点
+  if (hasChildren) {
+    html += `<div class="tree-children">`;
+    node.children.forEach(child => {
+      html += renderTreeNode(child, level + 1);
+    });
+    html += `</div>`;
+  }
+  
+  html += `</div>`;
+  
+  return html;
+}
+
+// 切换节点展开/折叠
+function toggleNode(element) {
+  const parent = $(element).closest('.tree-node-item');
+  const children = parent.find('> .tree-children');
+  
+  if (children.length > 0) {
+    children.toggleClass('show');
+    $(element).toggleClass('open');
+  }
+}
+
+// 选择文件
+function selectFile(element, filePath) {
+  $('.tree-node').removeClass('active');
+  $(element).addClass('active');
+  console.log('选择文件:', filePath);
+}
+
+// 可视化 VC 文件
+function visualizeVC(filePath) {
+  console.log('可视化 VC 文件:', filePath);
+  
+  // 显示加载状态（带进度动画）
+  const loadingHtml = `
+    <div class="preview-container">
+      <div class="preview-screen">
+        <div class="text-center text-muted py-5">
+          <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+          <h5>正在解析 UI 结构...</h5>
+          <p class="small text-muted mt-2">${escapeHtml(filePath)}</p>
+          <div class="progress mt-3" style="height: 6px; max-width: 300px; margin: 20px auto;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%;"></div>
+          </div>
+          <div class="small text-muted" id="parseStepText">读取文件...</div>
+        </div>
+      </div>
+    </div>
+  `;
+  $('#previewPlaceholder').html(loadingHtml);
+  
+  // 模拟解析步骤提示
+  const steps = ['读取文件...', '分析代码结构...', '提取 UI 元素...', '渲染预览...'];
+  let stepIndex = 0;
+  const stepInterval = setInterval(() => {
+    if (stepIndex < steps.length) {
+      $('#parseStepText').text(steps[stepIndex]);
+      stepIndex++;
+    }
+  }, 800);
+  
+  // 调用后端 API 解析 VC 文件
+  $.ajax({
+    url: '/api/ui/parse-vc',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'Authorization': 'Bearer ' + currentToken },
+    data: JSON.stringify({ filePath: filePath }),
+    success: function(res) {
+      clearInterval(stepInterval);
+      if (res.success) {
+        // 保存解析结果
+        window.lastParsedData = res.data;
+        renderUIPreview(res.data);
+      } else {
+        showError('解析失败：' + res.error);
+      }
+    },
+    error: function() {
+      clearInterval(stepInterval);
+      showError('请求失败');
+    }
+  });
+}
+
+// 渲染 UI 预览
+function renderUIPreview(data) {
+  const ui = data.ui || {};
+  const fileName = data.fileName || 'Unknown';
+  const parseMethod = data.parseMethod || 'unknown';
+  const parseTime = new Date(data.parseTime).toLocaleTimeString('zh-CN');
+  const currentDevice = localStorage.getItem('ui_preview_device') || 'iphone';
+  
+  // 构建模拟器界面
+  let html = '<div class="preview-container ' + currentDevice + '">';
+  html += '<div class="preview-screen" style="position: relative;">';
+  
+  // 状态栏
+  html += '<div style="position: absolute; top: 0; left: 0; right: 0; height: 44px; background: linear-gradient(to bottom, #f8f8f8, #fff); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; font-size: 14px; font-weight: 600;">';
+  html += '<span>9:41</span>';
+  html += '<div style="display: flex; gap: 5px;">';
+  html += '<i class="bi bi-reception-4"></i>';
+  html += '<i class="bi bi-wifi"></i>';
+  html += '<i class="bi bi-battery-full"></i>';
+  html += '</div>';
+  html += '</div>';
+  
+  // 导航栏
+  if (ui.navigationBar) {
+    html += '<div style="position: absolute; top: 44px; left: 0; right: 0; height: 44px; background: linear-gradient(to bottom, #007AFF, #0056b3); color: white; display: flex; align-items: center; padding: 0 16px; font-size: 17px; font-weight: 600;">';
+    if (ui.navigationBar.backButton) {
+      html += '<span style="color: white; font-size: 14px;"><i class="bi bi-chevron-left"></i> ' + escapeHtml(ui.navigationBar.backTitle || 'Back') + '</span>';
+    }
+    html += '<span style="flex: 1; text-align: center;">' + escapeHtml(ui.navigationBar.title || fileName.replace('ViewController', '')) + '</span>';
+    html += '<div style="width: 60px;"></div>'; // 占位
+    html += '</div>';
+  }
+  
+  // 内容区域
+  const contentTop = ui.navigationBar ? 88 : 44;
+  html += '<div style="position: absolute; top: ' + contentTop + 'px; left: 0; right: 0; bottom: 0; background: #f2f2f7; overflow-y: auto; padding: 16px;">';
+  
+  // 渲染 UI 元素
+  if (ui.elements && ui.elements.length > 0) {
+    ui.elements.forEach(el => {
+      html += renderUIElement(el);
+    });
+  } else {
+    html += '<div class="text-center text-muted py-5">';
+    html += '<i class="bi bi-file-earmark-code" style="font-size: 3rem; opacity: 0.3;"></i>';
+    html += '<p class="mt-3">代码布局，无法可视化</p>';
+    html += '</div>';
+  }
+  
+  html += '</div>'; // 内容区域结束
+  html += '</div>'; // preview-screen 结束
+  
+  // 设备标识
+  const deviceName = currentDevice === 'ipad' ? 'iPad' : 'iPhone';
+  html += '<div class="device-badge"><i class="bi bi-' + (currentDevice === 'ipad' ? 'tablet' : 'phone') + '"></i> ' + deviceName + '</div>';
+  
+  html += '</div>'; // preview-container 结束
+  
+  // 添加解析信息
+  const parseMethodText = {
+    'code': '📝 代码布局',
+    'snapkit': '🔧 SnapKit/Masonry',
+    'xib': '📋 XIB 文件',
+    'storyboard': '📖 Storyboard',
+    'placeholder': '⚠️ 占位数据',
+    'mixed': '🔀 混合布局',
+    'limited': '⚠️ 深度限制'
+  }[parseMethod] || '❓ 未知';
+  
+  html += '<div class="mt-3 p-3 bg-white rounded border">';
+  html += '<h6 class="mb-2"><i class="bi bi-file-code"></i> ' + escapeHtml(fileName) + '</h6>';
+  html += '<p class="small text-muted mb-1"><i class="bi bi-folder"></i> ' + escapeHtml(data.filePath || '') + '</p>';
+  html += '<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">';
+  html += '<div>';
+  html += '<span class="badge bg-primary me-1">' + parseMethodText + '</span>';
+  if (data.subviewsParsed) {
+    html += '<span class="badge bg-success"><i class="bi bi-layers"></i> 已解析子视图</span>';
+  }
+  html += '</div>';
+  html += '<span class="badge bg-secondary">' + ui.elements.length + ' 个元素</span>';
+  html += '</div>';
+  html += '<p class="small text-muted mt-2 mb-0"><i class="bi bi-clock"></i> 解析时间：' + parseTime + '</p>';
+  if (data.parseDepth !== undefined) {
+    html += '<p class="small text-muted mt-1 mb-0"><i class="bi bi-diagram-3"></i> 解析深度：' + data.parseDepth + '</p>';
+  }
+  html += '</div>';
+  
+  // 如果有调试信息，显示提示
+  if (data.debug) {
+    html += '<div class="mt-2 p-3 bg-warning rounded border" style="background: #fff3cd !important;">';
+    html += '<h6 class="mb-2"><i class="bi bi-info-circle"></i> 占位预览模式</h6>';
+    html += '<p class="small mb-1"><strong>原因:</strong> ' + escapeHtml(data.debug.reason) + '</p>';
+    html += '<p class="small mb-0"><strong>建议:</strong> ' + escapeHtml(data.debug.suggestion) + '</p>';
+    html += '</div>';
+  }
+  
+  $('#previewPlaceholder').html(html);
+}
+
+// 渲染单个 UI 元素
+function renderUIElement(el) {
+  const style = {
+    padding: '12px',
+    marginBottom: '12px',
+    background: 'white',
+    borderRadius: '10px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+  };
+  
+  let html = '<div style="';
+  for (const key in style) {
+    html += key + ':' + style[key] + ';';
+  }
+  html += '">';
+  
+  switch(el.type) {
+    case 'UILabel':
+      html += '<div style="font-size: 17px; color: #000;">📝 ' + escapeHtml(el.text || 'Label') + '</div>';
+      break;
+    case 'UIButton':
+      html += '<button style="width: 100%; padding: 12px; background: #007AFF; color: white; border: none; border-radius: 8px; font-size: 17px;">' + escapeHtml(el.title || 'Button') + '</button>';
+      break;
+    case 'UITextField':
+      html += '<input type="text" placeholder="' + escapeHtml(el.placeholder || '输入') + '" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 17px;" disabled />';
+      break;
+    case 'UITextView':
+      html += '<div style="min-height: 80px; background: #f8f8f8; border-radius: 8px; padding: 12px; font-size: 17px; color: #666;">' + escapeHtml(el.text || '文本内容') + '</div>';
+      break;
+    case 'UIImageView':
+      html += '<div style="height: 150px; background: linear-gradient(135deg, #e0e0e0, #f5f5f5); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #999;">';
+      html += '<i class="bi bi-image" style="font-size: 3rem;"></i>';
+      html += '<span class="ms-2">' + escapeHtml(el.imageName || 'Image') + '</span>';
+      html += '</div>';
+      break;
+    case 'UITableView':
+      html += '<div style="background: white; border-radius: 8px; overflow: hidden;">';
+      for (let i = 0; i < 3; i++) {
+        html += '<div style="padding: 12px; border-bottom: 1px solid #eee; display: flex; align-items: center;">';
+        html += '<i class="bi bi-list-ul" style="margin-right: 10px; color: #007AFF;"></i>';
+        html += '<span>列表项 ' + (i + 1) + '</span>';
+        html += '</div>';
+      }
+      html += '</div>';
+      break;
+    case 'UICollectionView':
+      html += '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">';
+      for (let i = 0; i < 4; i++) {
+        html += '<div style="aspect-ratio: 1; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white;">';
+        html += 'Item ' + (i + 1);
+        html += '</div>';
+      }
+      html += '</div>';
+      break;
+    case 'UISwitch':
+      html += '<div style="display: flex; justify-content: space-between; align-items: center;">';
+      html += '<span>' + escapeHtml(el.label || 'Switch') + '</span>';
+      html += '<div style="width: 50px; height: 30px; background: #34C759; border-radius: 15px; position: relative;">';
+      html += '<div style="position: absolute; right: 2px; top: 2px; width: 26px; height: 26px; background: white; border-radius: 50%;"></div>';
+      html += '</div>';
+      html += '</div>';
+      break;
+    case 'UISlider':
+      html += '<div style="padding: 10px 0;">';
+      html += '<div style="height: 4px; background: #ddd; border-radius: 2px; position: relative;">';
+      html += '<div style="position: absolute; left: 0; top: 0; height: 100%; width: 50%; background: #007AFF; border-radius: 2px;"></div>';
+      html += '<div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 28px; height: 28px; background: white; border: 2px solid #ddd; border-radius: 50%;"></div>';
+      html += '</div>';
+      html += '</div>';
+      break;
+    case 'UIActivityIndicatorView':
+      html += '<div class="text-center">';
+      html += '<div class="spinner-border text-primary" role="status"></div>';
+      html += '<p class="small text-muted mt-2">' + escapeHtml(el.label || '加载中') + '</p>';
+      html += '</div>';
+      break;
+    case 'UIScrollView':
+      html += '<div style="padding: 12px; background: #f8f8f8; border-radius: 8px;">';
+      html += '<div style="height: 200px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white;">';
+      html += '<i class="bi bi-arrows-expand" style="font-size: 2rem;"></i>';
+      html += '<span class="ms-2">滚动视图</span>';
+      html += '</div>';
+      html += '<p class="small text-muted mt-2 mb-0"><i class="bi bi-arrow-down"></i> 可滚动内容区域</p>';
+      html += '</div>';
+      break;
+    case 'WKWebView':
+      html += '<div style="padding: 12px; background: white; border-radius: 8px; border: 1px solid #ddd;">';
+      html += '<div style="height: 200px; background: #f8f8f8; border-radius: 6px; display: flex; flex-direction: column;">';
+      html += '<div style="padding: 8px; background: #e9ecef; border-radius: 6px 6px 0 0; font-size: 12px; color: #666;">';
+      html += '<i class="bi bi-globe"></i> ' + escapeHtml(el.url || 'https://...');
+      html += '</div>';
+      html += '<div style="flex: 1; display: flex; align-items: center; justify-content: center; color: #999;">';
+      html += '<i class="bi bi-globe" style="font-size: 3rem;"></i>';
+      html += '<span class="ms-2">Web 内容</span>';
+      html += '</div>';
+      html += '</div>';
+      html += '</div>';
+      break;
+    case 'UIViewController':
+      html += '<div style="padding: 12px; background: linear-gradient(135deg, #f093fb, #f5576c); border-radius: 8px; color: white;">';
+      html += '<i class="bi bi-collection" style="font-size: 1.5rem;"></i>';
+      html += '<h6 class="mt-2 mb-1">Storyboard 场景</h6>';
+      html += '<p class="small mb-0">标识符：' + escapeHtml(el.identifier || 'Unknown') + '</p>';
+      html += '</div>';
+      break;
+    case 'SubviewHeader':
+      html += '<div style="padding: 10px; margin: 16px 0 10px; background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 8px; color: white; font-weight: 600; font-size: 14px;">';
+      html += '<i class="bi bi-box"></i> ' + escapeHtml(el.text || el.name);
+      html += '</div>';
+      break;
+    case 'Divider':
+      html += '<div style="margin: 20px 0 15px; text-align: center; color: #999; font-size: 12px; font-weight: 600;">';
+      html += escapeHtml(el.text || '━━━━━━');
+      html += '</div>';
+      break;
+    default:
+      html += '<div style="padding: 10px; background: #f8f8f8; border-radius: 6px; font-size: 14px; color: #666;">';
+      html += '<i class="bi bi-box"></i> ' + escapeHtml(el.type);
+      if (el.text) html += ': ' + escapeHtml(el.text);
+      html += '</div>';
+  }
+  
+  html += '</div>';
+  return html;
+}
+
+function showError(msg) {
+  const html = `
+    <div class="preview-container">
+      <div class="preview-screen">
+        <div class="text-center text-danger py-5">
+          <i class="bi bi-exclamation-triangle" style="font-size: 3rem;"></i>
+          <h5 class="mt-3">解析失败</h5>
+          <p class="small">${escapeHtml(msg)}</p>
+        </div>
+      </div>
+    </div>
+  `;
+  $('#previewPlaceholder').html(html);
+}
+
+// 加载 Git 状态（分支 + 提交）
+function loadGitStatus() {
+  showLoading();
+  $.ajax({
+    url: '/api/git/status-detail',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'Authorization': 'Bearer ' + currentToken },
+    data: JSON.stringify({ path: currentProject.path }),
+    success: function(res) {
+      hideLoading();
+      if (res.success) {
+        // 显示当前分支
+        $('#currentBranch').text(res.data.branch || 'unknown');
+        
+        // 显示提交记录
+        if (res.data.commits && res.data.commits.length > 0) {
+          let commitsHtml = '<strong class="small text-muted"><i class="bi bi-clock-history"></i> 最近提交:</strong>';
+          res.data.commits.forEach(commit => {
+            const time = new Date(commit.time).toLocaleString('zh-CN');
+            commitsHtml += `
+              <div class="commit-item">
+                <div><span class="commit-hash">${escapeHtml(commit.hash)}</span> <span class="commit-time">${escapeHtml(time)}</span></div>
+                <div class="commit-message small text-muted">${escapeHtml(commit.message)}</div>
+              </div>
+            `;
+          });
+          $('#commitsList').html(commitsHtml);
+        } else {
+          $('#commitsList').html('<div class="small text-muted">无提交记录</div>');
+        }
+      } else {
+        $('#currentBranch').html('<span class="text-danger">获取失败</span>');
+        $('#commitsList').html('<div class="small text-danger">加载失败</div>');
+      }
+    },
+    error: function() {
+      hideLoading();
+      $('#currentBranch').html('<span class="text-danger">请求失败</span>');
+      $('#commitsList').html('<div class="small text-danger">请求失败</div>');
+    }
+  });
+}
+
+// 拉取最新代码
+function pullLatest() {
+  if (!confirm('确定要拉取最新代码吗？')) return;
+  
+  showLoading('正在拉取代码...');
+  $.ajax({
+    url: '/api/git/pull',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'Authorization': 'Bearer ' + currentToken },
+    data: JSON.stringify({ path: currentProject.path }),
+    success: function(res) {
+      hideLoading();
+      if (res.success) {
+        alert('✅ 代码拉取成功');
+        loadGitStatus(); // 重新加载 Git 状态
+        loadProjectTree(); // 重新加载目录树
+      } else {
+        alert('❌ 拉取失败：' + res.error);
+      }
+    },
+    error: function() {
+      hideLoading();
+      alert('❌ 请求失败');
+    }
+  });
+}
+
+function showLoading(text) {
+  if (text) $('#loadingOverlay .h4').text(text);
+  $('#loadingOverlay').css('display', 'flex');
+}
+
+function hideLoading() {
+  $('#loadingOverlay').hide();
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// 切换设备
+function switchDevice(device) {
+  // 保存到 localStorage
+  localStorage.setItem('ui_preview_device', device);
+  
+  // 更新按钮样式
+  $('#btnIPhone').removeClass('btn-light').addClass('btn-outline-light');
+  $('#btnIPad').removeClass('btn-light').addClass('btn-outline-light');
+  $('#btn' + device.charAt(0).toUpperCase() + device.slice(1)).removeClass('btn-outline-light').addClass('btn-light');
+  
+  // 重新渲染当前预览（如果有）
+  const lastParsedData = window.lastParsedData;
+  if (lastParsedData) {
+    renderUIPreview(lastParsedData);
+  }
+  
+  console.log('切换到设备:', device);
+}
+
+// 页面加载时恢复设备选择
+$(document).ready(function() {
+  const savedDevice = localStorage.getItem('ui_preview_device') || 'iphone';
+  switchDevice(savedDevice);
+});
+  </script>
+</body>
+</html>

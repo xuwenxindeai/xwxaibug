@@ -817,6 +817,238 @@ function buildProjectTree(rootPath, maxDepth = 10) {
 }
 
 // 解析 VC 文件
+
+// ==================== UI 样式提取辅助函数 ====================
+
+// 提取基础视图样式（backgroundColor、frame 等）
+function extractViewStyle(content, viewName) {
+  const style = {};
+  
+  // 提取 backgroundColor
+  const bgMatch = content.match(new RegExp(`${viewName}\\.backgroundColor\\s*=\\s*\\[UIColor\\s+(\\w+)\\]`));
+  if (bgMatch) {
+    style.backgroundColor = mapUIColor(bgMatch[1]);
+  }
+  
+  // 提取 frame
+  const frameMatch = content.match(new RegExp(`${viewName}\\.frame\\s*=\\s*CGRectMake\\(([^)]+)\\)`));
+  if (frameMatch) {
+    const frameValues = frameMatch[1].split(',').map(v => parseFloat(v.trim()));
+    if (frameValues.length === 4) {
+      style.frame = {
+        x: frameValues[0],
+        y: frameValues[1],
+        width: frameValues[2],
+        height: frameValues[3]
+      };
+    }
+  }
+  
+  // 提取 clipsToBounds
+  if (content.match(new RegExp(`${viewName}\\.clipsToBounds\\s*=\\s*YES`))) {
+    style.clipsToBounds = true;
+  }
+  
+  // 提取 hidden
+  if (content.match(new RegExp(`${viewName}\\.hidden\\s*=\\s*YES`))) {
+    style.hidden = true;
+  }
+  
+  // 提取 alpha
+  const alphaMatch = content.match(new RegExp(`${viewName}\\.alpha\\s*=\\s*([0-9.]+)`));
+  if (alphaMatch) {
+    style.alpha = parseFloat(alphaMatch[1]);
+  }
+  
+  return style;
+}
+
+// 提取 UILabel 样式
+function extractLabelStyle(content, name) {
+  const info = {
+    type: 'UILabel',
+    name: name,
+    layout: 'frame',
+    style: extractViewStyle(content, name)
+  };
+  
+  // 提取 text
+  const textMatch = content.match(new RegExp(`${name}\\.text\\s*=\\s*@"([^"]+)"`));
+  if (textMatch) {
+    info.text = textMatch[1];
+  }
+  
+  // 提取 textColor
+  const colorMatch = content.match(new RegExp(`${name}\\.textColor\\s*=\\s*\\[UIColor\\s+(\\w+)\\]`));
+  if (colorMatch) {
+    info.style.textColor = mapUIColor(colorMatch[1]);
+  }
+  
+  // 提取 font
+  const fontMatch = content.match(new RegExp(`${name}\\.font\\s*=\\s*\\[UIFont\\s+([^\\]]+)\\]`));
+  if (fontMatch) {
+    info.style.font = fontMatch[1];
+    if (fontMatch[1].includes('bold')) {
+      info.style.fontWeight = 'bold';
+    }
+  }
+  
+  // 提取 textAlignment
+  const alignMatch = content.match(new RegExp(`${name}\\.textAlignment\\s*=\\s*NSTextAlignment(\\w+)`));
+  if (alignMatch) {
+    info.style.textAlignment = alignMatch[1];
+  }
+  
+  // 提取 numberOfLines
+  const linesMatch = content.match(new RegExp(`${name}\\.numberOfLines\\s*=\\s*(\\d+)`));
+  if (linesMatch) {
+    info.style.numberOfLines = parseInt(linesMatch[1]);
+  }
+  
+  return info;
+}
+
+// 提取 UIButton 样式
+function extractButtonStyle(content, name, buttonType) {
+  const info = {
+    type: 'UIButton',
+    name: name,
+    buttonType: buttonType,
+    layout: 'frame',
+    style: extractViewStyle(content, name)
+  };
+  
+  // 提取 title
+  const titleMatch = content.match(new RegExp(`\\[${name}\\s+setTitle:@"([^"]+)"\\s+forState:UIControlStateNormal\\]`));
+  if (titleMatch) {
+    info.title = titleMatch[1];
+  }
+  
+  // 提取 titleColor
+  const titleColorMatch = content.match(new RegExp(`\\[${name}\\s+setTitleColor:\\[UIColor\\s+(\\w+)\\]\\s+forState:UIControlStateNormal\\]`));
+  if (titleColorMatch) {
+    info.style.titleColor = mapUIColor(titleColorMatch[1]);
+  }
+  
+  // 提取 backgroundImage
+  const bgImageMatch = content.match(new RegExp(`\\[${name}\\s+setBackgroundImage:\\[UIImage\\s+imageWithName:@"([^"]+)"\\]`));
+  if (bgImageMatch) {
+    info.style.backgroundImage = bgImageMatch[1];
+  }
+  
+  // 提取 cornerRadius
+  const cornerMatch = content.match(new RegExp(`${name}\\.layer\\.cornerRadius\\s*=\\s*(\\d+)`));
+  if (cornerMatch) {
+    info.style.cornerRadius = parseInt(cornerMatch[1]);
+  }
+  
+  // 提取 borderWidth
+  const borderWidthMatch = content.match(new RegExp(`${name}\\.layer\\.borderWidth\\s*=\\s*(\\d+)`));
+  if (borderWidthMatch) {
+    info.style.borderWidth = parseInt(borderWidthMatch[1]);
+  }
+  
+  return info;
+}
+
+// 提取 UITextField 样式
+function extractTextFieldStyle(content, name) {
+  const info = {
+    type: 'UITextField',
+    name: name,
+    layout: 'frame',
+    style: extractViewStyle(content, name)
+  };
+  
+  // 提取 placeholder
+  const placeholderMatch = content.match(new RegExp(`${name}\\.placeholder\\s*=\\s*@"([^"]+)"`));
+  if (placeholderMatch) {
+    info.placeholder = placeholderMatch[1];
+  }
+  
+  // 提取 text
+  const textMatch = content.match(new RegExp(`${name}\\.text\\s*=\\s*@"([^"]+)"`));
+  if (textMatch) {
+    info.text = textMatch[1];
+  }
+  
+  // 提取 keyboardType
+  const keyboardTypeMatch = content.match(new RegExp(`${name}\\.keyboardType\\s*=\\s*UIKeyboardType(\\w+)`));
+  if (keyboardTypeMatch) {
+    info.style.keyboardType = keyboardTypeMatch[1];
+  }
+  
+  // 提取 secureTextEntry
+  if (content.match(new RegExp(`${name}\\.secureTextEntry\\s*=\\s*YES`))) {
+    info.style.secureTextEntry = true;
+  }
+  
+  return info;
+}
+
+// 提取 UITableView 样式
+function extractTableViewStyle(content, name) {
+  const style = {};
+  
+  // 提取 rowHeight
+  const rowHeightMatch = content.match(new RegExp(`${name}\\.rowHeight\\s*=\\s*(\\d+)`));
+  if (rowHeightMatch) {
+    style.rowHeight = parseInt(rowHeightMatch[1]);
+  }
+  
+  // 提取 separatorStyle
+  const separatorMatch = content.match(new RegExp(`${name}\\.separatorStyle\\s*=\\s*UITableViewCellSeparatorStyle(\\w+)`));
+  if (separatorMatch) {
+    style.separatorStyle = separatorMatch[1];
+  }
+  
+  // 提取 tableHeaderView
+  const headerViewMatch = content.match(new RegExp(`${name}\\.tableHeaderView\\s*=\\s*(\\w+)`));
+  if (headerViewMatch) {
+    style.headerView = headerViewMatch[1];
+  }
+  
+  // 提取 allowsSelection
+  if (content.match(new RegExp(`${name}\\.allowsSelection\\s*=\\s*NO`))) {
+    style.allowsSelection = false;
+  }
+  
+  return style;
+}
+
+// 映射 UIColor 名称到 CSS 颜色
+function mapUIColor(colorName) {
+  const colorMap = {
+    'whiteColor': '#FFFFFF',
+    'blackColor': '#000000',
+    'redColor': '#FF3B30',
+    'greenColor': '#34C759',
+    'blueColor': '#007AFF',
+    'yellowColor': '#FFCC00',
+    'orangeColor': '#FF9500',
+    'purpleColor': '#AF52DE',
+    'brownColor': '#A2845E',
+    'lightGrayColor': '#D1D1D6',
+    'grayColor': '#8E8E93',
+    'darkGrayColor': '#636366',
+    'clearColor': 'transparent',
+    'systemBlueColor': '#007AFF',
+    'systemGreenColor': '#34C759',
+    'systemIndigoColor': '#5856D6',
+    'systemOrangeColor': '#FF9500',
+    'systemPinkColor': '#FF2D55',
+    'systemPurpleColor': '#AF52DE',
+    'systemRedColor': '#FF3B30',
+    'systemTealColor': '#5AC8FA',
+    'systemYellowColor': '#FFCC00',
+    'systemGrayColor': '#8E8E93',
+    'systemBackgroundColor': '#FFFFFF',
+    'labelColor': '#000000',
+    'secondaryLabelColor': '#3C3C4399'
+  };
+  return colorMap[colorName] || '#000000';
+}
+
 function parseVCFile(filePath, depth = 0) {
   const fs = require('fs');
   const path = require('path');
@@ -916,7 +1148,7 @@ function parseVCFile(filePath, depth = 0) {
       result.ui.navigationBar = { title: titleMatch[1] };
     }
     
-    // 6. 解析 Masonry 布局的视图
+    // 6. 解析 Masonry 布局的视图（精细化）
     if (content.includes('mas_makeConstraints')) {
       const masonryRegex = /(\w+)\[mas_makeConstraints:/g;
       let match;
@@ -932,20 +1164,51 @@ function parseVCFile(filePath, depth = 0) {
           
           if (typeMatch) {
             const viewType = typeMatch[1];
+            let element = null;
             
+            // 使用辅助函数提取详细样式
             if (viewType.includes('UILabel')) {
-              result.ui.elements.push({ type: 'UILabel', name: viewName, layout: 'masonry' });
+              element = extractLabelStyle(content, viewName);
+              element.layout = 'masonry';
             } else if (viewType.includes('UIButton')) {
-              result.ui.elements.push({ type: 'UIButton', name: viewName, layout: 'masonry' });
+              element = extractButtonStyle(content, viewName, 'System');
+              element.layout = 'masonry';
             } else if (viewType.includes('UITextField')) {
-              result.ui.elements.push({ type: 'UITextField', name: viewName, layout: 'masonry' });
+              element = extractTextFieldStyle(content, viewName);
+              element.layout = 'masonry';
+            } else if (viewType.includes('UITableView')) {
+              element = {
+                type: 'UITableView',
+                name: viewName,
+                style: extractTableViewStyle(content, viewName),
+                layout: 'masonry'
+              };
+            } else if (viewType.includes('UICollectionView')) {
+              element = {
+                type: 'UICollectionView',
+                name: viewName,
+                style: 'flow',
+                layout: 'masonry'
+              };
+            } else if (viewType.includes('ImageView')) {
+              element = {
+                type: 'UIImageView',
+                name: viewName,
+                layout: 'masonry',
+                style: extractViewStyle(content, viewName)
+              };
             } else if (viewType.includes('View')) {
-              result.ui.elements.push({
+              element = {
                 type: 'SubviewHeader',
                 name: viewType,
                 text: '📦 ' + viewType + ' (' + viewName + ')',
-                layout: 'masonry'
-              });
+                layout: 'masonry',
+                style: extractViewStyle(content, viewName)
+              };
+            }
+            
+            if (element) {
+              result.ui.elements.push(element);
             }
           }
         }

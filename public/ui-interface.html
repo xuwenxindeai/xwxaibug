@@ -408,55 +408,111 @@ function renderUIPreview(data) {
   $('#previewPlaceholder').html(html);
 }
 
-// 渲染单个 UI 元素
+// 渲染单个 UI 元素（精细化版本）
 function renderUIElement(el) {
-  const style = {
-    padding: '12px',
-    marginBottom: '12px',
-    background: 'white',
-    borderRadius: '10px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-  };
+  const style = el.style || {};
   
-  let html = '<div style="';
-  for (const key in style) {
-    html += key + ':' + style[key] + ';';
+  // 构建内联样式
+  let elementStyle = '';
+  
+  // 背景色
+  if (style.backgroundColor) {
+    elementStyle += `background: ${style.backgroundColor};`;
+  } else {
+    elementStyle += `background: white;`;
   }
-  html += '">';
+  
+  // 圆角
+  if (style.cornerRadius) {
+    elementStyle += `border-radius: ${style.cornerRadius}px;`;
+  } else {
+    elementStyle += `border-radius: 8px;`;
+  }
+  
+  // 尺寸（如果有 frame）
+  if (style.frame) {
+    // 按比例缩放（模拟器宽度 375px）
+    const scaleFactor = 375 / 414; // iPhone 缩放比例
+    elementStyle += `width: ${Math.min(style.frame.width * scaleFactor, 350)}px;`;
+    if (style.frame.height < 200) {
+      elementStyle += `height: ${style.frame.height * scaleFactor}px;`;
+    }
+  }
+  
+  // 透明度
+  if (style.alpha !== undefined) {
+    elementStyle += `opacity: ${style.alpha};`;
+  }
+  
+  // 通用容器样式
+  const containerStyle = `padding: 10px; margin-bottom: 10px; ${elementStyle} box-shadow: 0 1px 3px rgba(0,0,0,0.1);`;
+  
+  let html = '<div style="' + containerStyle + '">';
   
   switch(el.type) {
     case 'UILabel':
-      html += '<div style="font-size: 17px; color: #000;">📝 ' + escapeHtml(el.text || 'Label') + '</div>';
+      const labelColor = style.textColor || '#000000';
+      const labelAlign = style.textAlignment === 'Center' ? 'text-align: center;' : (style.textAlignment === 'Right' ? 'text-align: right;' : '');
+      const fontSize = style.font ? (style.font.includes('bold') ? '17px' : '17px') : '17px';
+      const fontWeight = style.fontWeight || 'normal';
+      html += `<div style="font-size: ${fontSize}; color: ${labelColor}; ${labelAlign} font-weight: ${fontWeight};">📝 ${escapeHtml(el.text || 'Label')}</div>`;
       break;
+      
     case 'UIButton':
-      html += '<button style="width: 100%; padding: 12px; background: #007AFF; color: white; border: none; border-radius: 8px; font-size: 17px;">' + escapeHtml(el.title || 'Button') + '</button>';
+      const btnColor = style.titleColor || 'white';
+      const btnBg = style.backgroundImage ? `url('${style.backgroundImage}')` : (style.backgroundColor || '#007AFF');
+      const btnRadius = style.cornerRadius || 8;
+      const btnBorder = style.borderWidth ? `${style.borderWidth}px solid ${btnColor}` : 'none';
+      html += `<button style="width: 100%; padding: 10px; background: ${btnBg}; color: ${btnColor}; border: ${btnBorder}; border-radius: ${btnRadius}px; font-size: 16px; font-weight: 600;">${escapeHtml(el.title || 'Button')}</button>`;
       break;
+      
     case 'UITextField':
-      html += '<input type="text" placeholder="' + escapeHtml(el.placeholder || '输入') + '" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 17px;" disabled />';
+      const keyboardType = style.keyboardType || 'default';
+      const inputType = keyboardType === 'NumberPad' || keyboardType === 'DecimalPad' ? 'number' : 'text';
+      const isSecure = style.secureTextEntry ? 'password' : inputType;
+      html += `<input type="${isSecure}" placeholder="${escapeHtml(el.placeholder || '输入')}" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px; background: white;" disabled />`;
+      if (el.text) {
+        html += `<div class="small text-muted mt-1">值：${escapeHtml(el.text)}</div>`;
+      }
       break;
+      
     case 'UITextView':
-      html += '<div style="min-height: 80px; background: #f8f8f8; border-radius: 8px; padding: 12px; font-size: 17px; color: #666;">' + escapeHtml(el.text || '文本内容') + '</div>';
+      html += `<div style="min-height: 60px; background: #f8f8f8; border-radius: 6px; padding: 8px; font-size: 16px; color: #666;">${escapeHtml(el.text || '文本内容')}</div>`;
       break;
+      
     case 'UIImageView':
-      html += '<div style="height: 150px; background: linear-gradient(135deg, #e0e0e0, #f5f5f5); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #999;">';
-      html += '<i class="bi bi-image" style="font-size: 3rem;"></i>';
-      html += '<span class="ms-2">' + escapeHtml(el.imageName || 'Image') + '</span>';
+      const imageName = el.imageName || 'Image';
+      const imgHeight = style.frame && style.frame.height < 200 ? style.frame.height : 120;
+      html += `<div style="height: ${imgHeight}px; background: linear-gradient(135deg, #e0e0e0, #f5f5f5); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #999;">`;
+      html += `<i class="bi bi-image" style="font-size: 2.5rem;"></i>`;
+      html += `<span class="ms-2">${escapeHtml(imageName)}</span>`;
       html += '</div>';
       break;
+      
     case 'UITableView':
-      html += '<div style="background: white; border-radius: 8px; overflow: hidden;">';
+      const rowHeight = style.rowHeight || 44;
+      const headerView = style.headerView;
+      const allowsSelection = style.allowsSelection !== false;
+      html += '<div style="background: white; border-radius: 6px; overflow: hidden;">';
+      if (headerView) {
+        html += `<div class="small text-muted p-2" style="background: #f8f8f8;">Header: ${escapeHtml(headerView)}</div>`;
+      }
       for (let i = 0; i < 3; i++) {
-        html += '<div style="padding: 12px; border-bottom: 1px solid #eee; display: flex; align-items: center;">';
-        html += '<i class="bi bi-list-ul" style="margin-right: 10px; color: #007AFF;"></i>';
-        html += '<span>列表项 ' + (i + 1) + '</span>';
+        html += `<div style="padding: ${Math.min(rowHeight/2, 20)}px 10px; border-bottom: ${style.separatorStyle === 'None' ? 'none' : '1px solid #eee'}; display: flex; align-items: center; ${allowsSelection ? '' : 'opacity: 0.6;'}">`;
+        html += '<i class="bi bi-list-ul" style="margin-right: 8px; color: #007AFF;"></i>';
+        html += `<span>列表项 ${i + 1}</span>`;
         html += '</div>';
       }
       html += '</div>';
       break;
+      
     case 'UICollectionView':
-      html += '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">';
+      html += '<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">';
       for (let i = 0; i < 4; i++) {
-        html += '<div style="aspect-ratio: 1; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white;">';
+        html += `<div style="aspect-ratio: 1; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px;">Item ${i + 1}</div>`;
+      }
+      html += '</div>';
+      break;
         html += 'Item ' + (i + 1);
         html += '</div>';
       }

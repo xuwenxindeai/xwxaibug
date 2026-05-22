@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>精确 UI 渲染测试 - NSHomeViewController</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <script src="./ui-precise-render-components.js?v=202604011430"></script>
+  <style>
+    body { 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+      min-height: 100vh; 
+      padding: 20px;
+    }
+    .test-container { 
+      max-width: 500px; 
+      margin: 0 auto; 
+    }
+    .phone-frame {
+      background: #1a1a1a;
+      border-radius: 40px;
+      padding: 60px 20px 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .phone-screen {
+      background: #f8f9fa;
+      border-radius: 20px;
+      overflow: hidden;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    .status-bar {
+      height: 44px;
+      background: linear-gradient(to bottom, #f8f8f8, #fff);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .nav-bar {
+      height: 44px;
+      background: linear-gradient(to bottom, #667eea, #764ba2);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 17px;
+      font-weight: 600;
+    }
+    .header-info {
+      background: rgba(255,255,255,0.1);
+      color: white;
+      padding: 12px;
+      margin: 12px;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-container">
+    <div class="text-center mb-4">
+      <h1 class="text-white fw-bold">
+        <i class="bi bi-phone"></i> 精确 UI 渲染测试
+      </h1>
+      <p class="text-white-50">NSHomeViewController.m</p>
+    </div>
+
+    <div class="phone-frame">
+      <div class="phone-screen">
+        <!-- 状态栏 -->
+        <div class="status-bar">
+          <span>9:41</span>
+          <div style="display: flex; gap: 5px;">
+            <i class="bi bi-reception-4"></i>
+            <i class="bi bi-wifi"></i>
+            <i class="bi bi-battery-full"></i>
+          </div>
+        </div>
+
+        <!-- 导航栏 -->
+        <div class="nav-bar">
+          网校首页
+        </div>
+
+        <!-- 解析信息 -->
+        <div class="header-info">
+          <div><strong>📊 解析信息</strong></div>
+          <div id="parseInfo">加载中...</div>
+        </div>
+
+        <!-- UI 内容区域 -->
+        <div id="uiContent"></div>
+      </div>
+    </div>
+
+    <div class="text-center mt-4">
+      <button class="btn btn-light" onclick="location.reload()">
+        <i class="bi bi-arrow-clockwise"></i> 重新加载
+      </button>
+      <button class="btn btn-outline-light" onclick="location.href='ui-interface.html'">
+        <i class="bi bi-box-arrow-right"></i> 返回原页面
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // 测试数据（从后端解析结果）
+    const testData = {
+      fileName: 'NSHomeViewController.m',
+      parseMethod: 'precise',
+      ui: {
+        navigationBar: { title: '网校首页' },
+        elements: [
+          { type: 'UITableView', name: 'tableView', template: 'tableView', height: 400, title: '列表', icon: '📋', renderType: 'precise' },
+          { type: 'UICustomView', viewType: 'UIView', viewName: 'headerContainer', template: 'custom', height: 100, title: 'Header 容器', icon: '📦', renderType: 'precise' },
+          { type: 'UIBannerView', viewType: 'NSHomeBannerView', viewName: 'bannerView', template: 'banner', height: 282, title: '轮播图', icon: '🖼️', renderType: 'precise' },
+          { type: 'UIMenuView', viewType: 'NSMenuView', viewName: 'menuView', template: 'menuGrid', height: 120, title: '功能菜单', icon: '📱', items: 8, renderType: 'precise' },
+          { type: 'UIEnterRoomView', viewType: 'NSEnterRoomView', viewName: 'enterRoomView', template: 'enterRoom', height: 320, title: '进入教室', icon: '🚪', renderType: 'precise' },
+          { type: 'UIClassScheduleView', viewType: 'NSHomeClassScheduleView', viewName: 'classScheduleView', template: 'schedule', height: 180, title: '课程表', icon: '📅', renderType: 'precise' },
+          { type: 'UITrailView', viewType: 'NSHomeTrailView', viewName: 'trialView', template: 'trail', height: 140, title: '试听课', icon: '🎬', renderType: 'precise' },
+          { type: 'UIPlanView', viewType: 'NSHomePlanView', viewName: 'planView', template: 'plan', height: 160, title: '学习计划', icon: '📋', renderType: 'precise' },
+          { type: 'UIHotCoursewareView', viewType: 'NSHotCoursewareView', viewName: 'hotCoursewareView', template: 'courseware', height: 200, title: '热门课件', icon: '📚', renderType: 'precise' },
+          { type: 'UISectionHeaderView', viewType: 'NSHomeSectionHeaderView', viewName: 'sectionHeaderView', template: 'sectionHeader', height: 44, title: '分区标题', icon: '📌', renderType: 'precise' },
+          { type: 'UIImageView', viewType: 'UIImageView', viewName: 'homeShadowTopImageView', template: 'image', height: 150, title: '图片', icon: '🖼️', renderType: 'precise' },
+          { type: 'UIImageView', viewType: 'UIImageView', viewName: 'homeShadowBottomImageView', template: 'image', height: 150, title: '图片', icon: '🖼️', renderType: 'precise' }
+        ]
+      }
+    };
+
+    // 按真实顺序重新排序（根据 OC 代码中的添加顺序）
+    const orderMap = {
+      'bannerView': 1,
+      'menuView': 2,
+      'enterRoomView': 3,
+      'classScheduleView': 4,
+      'trialView': 5,
+      'planView': 6,
+      'hotCoursewareView': 7,
+      'sectionHeaderView': 8,
+      'tableView': 9,
+      'homeShadowTopImageView': 10,
+      'homeShadowBottomImageView': 11,
+      'headerContainer': 12
+    };
+
+    testData.ui.elements.sort((a, b) => {
+      return (orderMap[a.viewName] || 999) - (orderMap[b.viewName] || 999);
+    });
+
+    // 显示解析信息
+    document.getElementById('parseInfo').innerHTML = `
+      <div>文件：${testData.fileName}</div>
+      <div>方法：${testData.parseMethod}</div>
+      <div>元素：${testData.ui.elements.length} 个</div>
+    `;
+
+    // 渲染 UI 元素
+    const uiContent = document.getElementById('uiContent');
+    let html = '';
+    
+    testData.ui.elements.forEach((el, index) => {
+      try {
+        const rendered = renderUIElementPrecise(el);
+        html += rendered;
+      } catch (error) {
+        console.error(`渲染元素 ${index} 失败:`, error, el);
+        html += `<div style="padding: 12px; color: red;">渲染失败：${el.viewName}</div>`;
+      }
+    });
+    
+    uiContent.innerHTML = html;
+
+    console.log('✅ 精确渲染完成！');
+    console.log('渲染的元素数量:', testData.ui.elements.length);
+  </script>
+</body>
+</html>

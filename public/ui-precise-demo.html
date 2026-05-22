@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>精确 UI 渲染演示</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+    .demo-container { max-width: 500px; margin: 0 auto; }
+    .phone-frame { background: #1a1a1a; border-radius: 40px; padding: 60px 20px 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .phone-screen { background: #f5f6fa; border-radius: 20px; overflow: hidden; max-height: 700px; overflow-y: auto; }
+    .status-bar { height: 44px; background: linear-gradient(to bottom, #ffffff, #f8f9fa); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; font-size: 14px; font-weight: 600; border-bottom: 1px solid #e8ecef; }
+    .nav-bar { height: 44px; background: linear-gradient(to bottom, #667eea, #764ba2); color: white; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 600; }
+    .header-info { background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%); color: #667eea; padding: 12px; margin: 12px; border-radius: 8px; font-size: 12px; border: 1px solid rgba(102, 126, 234, 0.15); }
+    
+    /* UI 组件样式 */
+    .banner-view { height: 282px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; margin: 12px; overflow: hidden; position: relative; }
+    .banner-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; text-align: center; }
+    .banner-indicators { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; }
+    .banner-dot { width: 8px; height: 8px; background: rgba(255,255,255,0.5); border-radius: 4px; }
+    .banner-dot.active { background: rgba(255,255,255,0.9); }
+    
+    .menu-view { background: #ffffff; border-radius: 12px; margin: 12px; padding: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.04); }
+    .menu-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .menu-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .menu-icon { width: 48px; height: 48px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+    
+    .enter-room-view { height: 320px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 12px; margin: 12px; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; }
+    .enter-room-content { text-align: center; color: white; position: relative; z-index: 1; }
+    .enter-room-btn { background: #ffffff; color: #f5576c; padding: 14px 48px; border-radius: 28px; font-size: 18px; font-weight: 600; display: inline-block; box-shadow: 0 4px 16px rgba(0,0,0,0.2); margin-top: 24px; }
+    
+    .schedule-view { background: #ffffff; border-radius: 12px; margin: 12px; padding: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.04); }
+    .schedule-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 8px; }
+    .schedule-day { text-align: center; font-size: 12px; color: #999; }
+    .schedule-day.today { color: #667eea; font-weight: 600; }
+    .schedule-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 12px; color: white; }
+    
+    .trail-view { height: 140px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border-radius: 12px; margin: 12px; overflow: hidden; position: relative; display: flex; align-items: center; }
+    .trail-icon { width: 120px; height: 100%; background: rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center; font-size: 48px; }
+    .trail-content { flex: 1; padding: 16px; color: white; }
+    .trail-badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 12px; font-size: 12px; }
+    
+    .plan-view { background: #ffffff; border-radius: 12px; margin: 12px; padding: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.04); }
+    .plan-task { margin-bottom: 8px; }
+    .plan-progress { height: 6px; background: #e8ecef; border-radius: 3px; overflow: hidden; }
+    .plan-progress-bar { height: 100%; border-radius: 3px; }
+    
+    .courseware-view { background: #ffffff; border-radius: 12px; margin: 12px; padding: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.04); }
+    .course-item { display: flex; align-items: center; gap: 12px; padding: 8px; background: #f8f9fa; border-radius: 8px; margin-bottom: 8px; }
+    .course-icon { width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: white; }
+    
+    .section-header { height: 44px; display: flex; align-items: center; padding: 0 16px; background: #f8f9fa; margin: 8px 0; }
+    .section-marker { width: 4px; height: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 2px; margin-right: 8px; }
+    
+    .table-view { background: #ffffff; border-radius: 12px; margin: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.04); }
+    .table-header { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; justify-content: space-between; }
+    .table-row { padding: 14px 16px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 12px; }
+    .table-icon { width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; }
+    
+    .image-view { height: 150px; background: linear-gradient(135deg, #e0e0e0 0%, #f5f5f5 100%); border-radius: 12px; margin: 12px; display: flex; align-items: center; justify-content: center; border: 2px dashed #ccc; }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <div class="text-center mb-4">
+      <h1 class="text-white fw-bold">
+        <i class="bi bi-phone"></i> 精确 UI 渲染演示
+      </h1>
+      <p class="text-white-50">NSHomeViewController.m - 真实 OC 代码还原</p>
+      <p class="text-white-50" style="font-size: 12px;">v202604011430 - 强制刷新版本</p>
+    </div>
+
+    <div class="phone-frame">
+      <div class="phone-screen">
+        <!-- 状态栏 -->
+        <div class="status-bar">
+          <span>9:41</span>
+          <div style="display: flex; gap: 5px;">
+            <i class="bi bi-reception-4"></i>
+            <i class="bi bi-wifi"></i>
+            <i class="bi bi-battery-full"></i>
+          </div>
+        </div>
+
+        <!-- 导航栏 -->
+        <div class="nav-bar">
+          网校首页
+        </div>
+
+        <!-- 解析信息 -->
+        <div class="header-info">
+          <div><strong>📊 解析信息</strong></div>
+          <div>文件：NSHomeViewController.m</div>
+          <div>方法：precise（精确解析）</div>
+          <div>元素：12 个 UI 组件</div>
+        </div>
+
+        <!-- UI 内容区域 - 按真实顺序渲染 -->
+        
+        <!-- 1. Banner 轮播图 -->
+        <div class="banner-view">
+          <div class="banner-content">
+            <div style="font-size: 48px; margin-bottom: 8px;">🎠</div>
+            <div style="font-size: 16px; font-weight: 600;">轮播图</div>
+            <div style="font-size: 12px; opacity: 0.8; margin-top: 4px;">bannerView · 282px</div>
+          </div>
+          <div class="banner-indicators">
+            <div class="banner-dot active"></div>
+            <div class="banner-dot"></div>
+            <div class="banner-dot"></div>
+          </div>
+        </div>
+
+        <!-- 2. 菜单网格 -->
+        <div class="menu-view">
+          <div style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+            <span>📱</span>
+            <span>功能菜单</span>
+            <span style="margin-left: auto; font-size: 12px; color: #999;">menuView · 120px</span>
+          </div>
+          <div class="menu-grid">
+            <div class="menu-item">
+              <div class="menu-icon">📚</div>
+              <div style="font-size: 11px; color: #666;">课件</div>
+            </div>
+            <div class="menu-item">
+              <div class="menu-icon">📅</div>
+              <div style="font-size: 11px; color: #666;">课表</div>
+            </div>
+            <div class="menu-item">
+              <div class="menu-icon">👨‍🏫</div>
+              <div style="font-size: 11px; color: #666;">老师</div>
+            </div>
+            <div class="menu-item">
+              <div class="menu-icon">📊</div>
+              <div style="font-size: 11px; color: #666;">报告</div>
+            </div>
+            <div class="menu-item">
+              <div class="menu-icon">💬</div>
+              <div style="font-size: 11px; color: #666;">消息</div>
+            </div>
+            <div class="menu-item">
+              <div class="menu-icon">⚙️</div>
+              <div style="font-size: 11px; color: #666;">设置</div>
+            </div>
+            <div class="menu-item">
+              <div class="menu-icon">📁</div>
+              <div style="font-size: 11px; color: #666;">资料</div>
+            </div>
+            <div class="menu-item">
+              <div class="menu-icon">❓</div>
+              <div style="font-size: 11px; color: #666;">帮助</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. 进入教室 -->
+        <div class="enter-room-view">
+          <div style="position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
+          <div style="position: absolute; bottom: -30px; left: -30px; width: 150px; height: 150px; background: rgba(255,255,255,0.1); border-radius: 50%;"></div>
+          <div class="enter-room-content">
+            <div style="font-size: 56px; margin-bottom: 12px;">🚪</div>
+            <div style="font-size: 24px; font-weight: 700; margin-bottom: 8px;">进入教室</div>
+            <div style="font-size: 14px; opacity: 0.9; margin-bottom: 24px;">enterRoomView · 320px</div>
+            <div class="enter-room-btn">立即进入</div>
+            <div style="margin-top: 20px; font-size: 12px; opacity: 0.8;">
+              <span style="margin: 0 8px;">🟢 直播中</span>
+              <span style="margin: 0 8px;">👥 128 人在线</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. 课程表 -->
+        <div class="schedule-view">
+          <div style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+            <span>📅</span>
+            <span>课程表</span>
+            <span style="margin-left: auto; font-size: 12px; color: #999;">classScheduleView · 180px</span>
+          </div>
+          <div class="schedule-grid">
+            <div class="schedule-day">一</div>
+            <div class="schedule-day">二</div>
+            <div class="schedule-day">三</div>
+            <div class="schedule-day today">今</div>
+            <div class="schedule-day">五</div>
+            <div class="schedule-day">六</div>
+            <div class="schedule-day">日</div>
+          </div>
+          <div class="schedule-card">
+            <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">数学提高班</div>
+            <div style="font-size: 12px; opacity: 0.9;">今天 19:00-20:30</div>
+            <div style="font-size: 12px; opacity: 0.8; margin-top: 4px;">👨‍🏫 王老师</div>
+          </div>
+        </div>
+
+        <!-- 5. 试听课 -->
+        <div class="trail-view">
+          <div class="trail-icon">🎬</div>
+          <div class="trail-content">
+            <div style="font-size: 18px; font-weight: 700; margin-bottom: 4px;">试听课</div>
+            <div style="font-size: 12px; opacity: 0.9; margin-bottom: 8px;">trialView · 140px</div>
+            <div class="trail-badge">✨ 免费试听</div>
+          </div>
+          <div style="padding-right: 16px;">
+            <div style="width: 36px; height: 36px; background: #ffffff; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #11998e; font-size: 16px;">▶</div>
+          </div>
+        </div>
+
+        <!-- 6. 学习计划 -->
+        <div class="plan-view">
+          <div style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+            <span>📋</span>
+            <span>学习计划</span>
+            <span style="margin-left: auto; font-size: 12px; color: #999;">planView · 160px</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div class="plan-task">
+              <div style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-bottom: 4px;">
+                <span>完成第一章学习</span>
+                <span>100%</span>
+              </div>
+              <div class="plan-progress">
+                <div class="plan-progress-bar" style="width: 100%; background: #38ef7d;"></div>
+              </div>
+            </div>
+            <div class="plan-task">
+              <div style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-bottom: 4px;">
+                <span>完成课后练习</span>
+                <span>60%</span>
+              </div>
+              <div class="plan-progress">
+                <div class="plan-progress-bar" style="width: 60%; background: #667eea;"></div>
+              </div>
+            </div>
+            <div class="plan-task">
+              <div style="display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-bottom: 4px;">
+                <span>参加单元测试</span>
+                <span>0%</span>
+              </div>
+              <div class="plan-progress">
+                <div class="plan-progress-bar" style="width: 0%; background: #f093fb;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 7. 热门课件 -->
+        <div class="courseware-view">
+          <div style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
+            <span>📚</span>
+            <span>热门课件</span>
+            <span style="margin-left: auto; font-size: 12px; color: #999;">hotCoursewareView · 200px</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div class="course-item">
+              <div class="course-icon">📐</div>
+              <div style="flex: 1;">
+                <div style="font-size: 14px; font-weight: 600; color: #333;">数学提高班</div>
+                <div style="font-size: 12px; color: #999;">👥 1280 人在学</div>
+              </div>
+              <div style="font-size: 12px; color: #667eea; font-weight: 600;">🔥 热门</div>
+            </div>
+            <div class="course-item">
+              <div class="course-icon">🔤</div>
+              <div style="flex: 1;">
+                <div style="font-size: 14px; font-weight: 600; color: #333;">英语强化班</div>
+                <div style="font-size: 12px; color: #999;">👥 956 人在学</div>
+              </div>
+              <div style="font-size: 12px; color: #667eea; font-weight: 600;">查看详情</div>
+            </div>
+            <div class="course-item">
+              <div class="course-icon">⚡</div>
+              <div style="flex: 1;">
+                <div style="font-size: 14px; font-weight: 600; color: #333;">物理竞赛班</div>
+                <div style="font-size: 12px; color: #999;">👥 742 人在学</div>
+              </div>
+              <div style="font-size: 12px; color: #667eea; font-weight: 600;">查看详情</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 8. 分区标题 -->
+        <div class="section-header">
+          <div class="section-marker"></div>
+          <div style="font-size: 14px; font-weight: 600; color: #333;">分区标题</div>
+          <div style="font-size: 12px; color: #999; margin-left: 8px;">sectionHeaderView · 44px</div>
+        </div>
+
+        <!-- 9. TableView -->
+        <div class="table-view">
+          <div class="table-header">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span>📋</span>
+              <span style="font-size: 14px; font-weight: 600; color: #333;">列表</span>
+            </div>
+            <div style="font-size: 12px; color: #999;">tableView · 5 项</div>
+          </div>
+          <div class="table-row">
+            <div class="table-icon">📚</div>
+            <div style="flex: 1;">
+              <div style="font-size: 14px; font-weight: 600; color: #333;">列表项 1</div>
+              <div style="font-size: 12px; color: #999; margin-top: 2px;">这是第 1 项的描述内容</div>
+            </div>
+            <div style="font-size: 12px; color: #ccc;">›</div>
+          </div>
+          <div class="table-row">
+            <div class="table-icon">📝</div>
+            <div style="flex: 1;">
+              <div style="font-size: 14px; font-weight: 600; color: #333;">列表项 2</div>
+              <div style="font-size: 12px; color: #999; margin-top: 2px;">这是第 2 项的描述内容</div>
+            </div>
+            <div style="font-size: 12px; color: #ccc;">›</div>
+          </div>
+          <div class="table-row">
+            <div class="table-icon">📊</div>
+            <div style="flex: 1;">
+              <div style="font-size: 14px; font-weight: 600; color: #333;">列表项 3</div>
+              <div style="font-size: 12px; color: #999; margin-top: 2px;">这是第 3 项的描述内容</div>
+            </div>
+            <div style="font-size: 12px; color: #ccc;">›</div>
+          </div>
+        </div>
+
+        <!-- 10-11. 图片视图 -->
+        <div class="image-view">
+          <div style="text-align: center; color: #999;">
+            <div style="font-size: 48px; margin-bottom: 8px;">🖼️</div>
+            <div style="font-size: 14px;">homeShadowTopImageView</div>
+            <div style="font-size: 12px; margin-top: 4px;">高度：150px</div>
+          </div>
+        </div>
+        
+        <div class="image-view">
+          <div style="text-align: center; color: #999;">
+            <div style="font-size: 48px; margin-bottom: 8px;">🖼️</div>
+            <div style="font-size: 14px;">homeShadowBottomImageView</div>
+            <div style="font-size: 12px; margin-top: 4px;">高度：150px</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="text-center mt-4">
+      <button class="btn btn-light" onclick="location.reload()">
+        <i class="bi bi-arrow-clockwise"></i> 重新加载
+      </button>
+      <button class="btn btn-outline-light" onclick="location.href='ui-interface.html'">
+        <i class="bi bi-box-arrow-right"></i> 返回原页面
+      </button>
+    </div>
+  </div>
+
+  <script>
+    console.log('✅ 精确 UI 渲染演示页面已加载');
+    console.log('版本：v202604011430');
+    console.log('渲染的 UI 组件数量：12 个');
+  </script>
+</body>
+</html>

@@ -1,6 +1,8 @@
 # 依赖目录
 node_modules/
 
+workspace/
+
 # 数据库文件
 data/*.db
 

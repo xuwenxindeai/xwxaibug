@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>网校首页</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    .demo-container { max-width: 430px; margin: 0 auto; }
+    .phone-frame { background: #1a1a1a; border-radius: 40px; padding: 54px 0 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .phone-screen { background: #f5f6fa; overflow: hidden; }
+    
+    /* 状态栏 */
+    .status-bar { height: 54px; background: linear-gradient(to bottom, #ffffff, #f8f9fa); display: flex; justify-content: space-between; align-items: flex-end; padding: 0 20px 8px; font-size: 14px; font-weight: 600; }
+    
+    /* 导航栏 */
+    .nav-bar { height: 44px; background: linear-gradient(to bottom, #667eea, #764ba2); color: white; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 600; }
+    
+    /* 内容区域 */
+    .content { overflow-y: auto; }
+    
+    /* Header 容器 */
+    .header-container { background: #ffffff; }
+    
+    /* Banner - 282px */
+    .banner-view { height: 282px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); position: relative; }
+    .banner-content { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; text-align: center; width: 100%; padding: 0 20px; }
+    .banner-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+    .banner-subtitle { font-size: 14px; opacity: 0.9; }
+    .banner-indicators { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; }
+    .banner-dot { width: 6px; height: 6px; background: rgba(255,255,255,0.5); border-radius: 3px; }
+    .banner-dot.active { background: rgba(255,255,255,0.9); width: 16px; border-radius: 3px; }
+    
+    /* Menu - 225px */
+    .menu-view { background: #f5f6f8; height: 225px; position: relative; }
+    .menu-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 20px 16px; }
+    .menu-item { display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; transition: transform 0.2s; }
+    .menu-item:hover { transform: scale(1.05); }
+    .menu-icon { width: 56px; height: 56px; background: white; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 26px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .menu-label { font-size: 11px; color: #666; font-weight: 500; }
+    
+    /* EnterRoom - 320px */
+    .enter-room-view { height: 320px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); position: relative; display: flex; align-items: center; justify-content: center; }
+    .enter-room-content { text-align: center; color: white; position: relative; z-index: 1; padding: 0 20px; }
+    .enter-room-icon { font-size: 64px; margin-bottom: 12px; }
+    .enter-room-title { font-size: 26px; font-weight: 700; margin-bottom: 8px; }
+    .enter-room-btn { background: white; color: #f5576c; padding: 14px 48px; border-radius: 28px; font-size: 18px; font-weight: 600; display: inline-block; box-shadow: 0 4px 16px rgba(0,0,0,0.15); margin-top: 20px; cursor: pointer; transition: transform 0.2s; }
+    .enter-room-btn:hover { transform: scale(1.05); }
+    .enter-room-status { margin-top: 16px; font-size: 12px; opacity: 0.9; }
+    
+    /* ClassSchedule - 180px */
+    .schedule-view { height: 180px; background: #ffffff; padding: 16px; }
+    .schedule-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .schedule-title { font-size: 15px; font-weight: 600; color: #333; display: flex; align-items: center; gap: 6px; }
+    .schedule-more { font-size: 12px; color: #667eea; cursor: pointer; }
+    .schedule-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 10px; }
+    .schedule-day { text-align: center; font-size: 11px; color: #999; }
+    .schedule-day.today { color: #667eea; font-weight: 600; }
+    .schedule-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; padding: 12px; color: white; }
+    .schedule-course { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .schedule-time { font-size: 11px; opacity: 0.9; }
+    .schedule-teacher { font-size: 11px; opacity: 0.8; margin-top: 4px; }
+    
+    /* Trail - 140px */
+    .trail-view { height: 140px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); display: flex; align-items: center; cursor: pointer; }
+    .trail-icon-area { width: 140px; height: 100%; background: rgba(0,0,0,0.08); display: flex; align-items: center; justify-content: center; font-size: 48px; }
+    .trail-content { flex: 1; padding: 0 20px; color: white; }
+    .trail-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+    .trail-subtitle { font-size: 13px; opacity: 0.9; margin-bottom: 10px; }
+    .trail-badge { display: inline-block; background: rgba(255,255,255,0.25); padding: 5px 14px; border-radius: 14px; font-size: 12px; font-weight: 600; }
+    .trail-play { width: 44px; height: 44px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #11998e; font-size: 18px; margin-right: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); cursor: pointer; transition: transform 0.2s; }
+    .trail-play:hover { transform: scale(1.1); }
+    
+    /* Plan - 160px */
+    .plan-view { height: 160px; background: #ffffff; padding: 16px; }
+    .plan-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .plan-title { font-size: 15px; font-weight: 600; color: #333; display: flex; align-items: center; gap: 6px; }
+    .plan-more { font-size: 12px; color: #667eea; cursor: pointer; }
+    .plan-task { margin-bottom: 10px; cursor: pointer; }
+    .plan-task:hover .plan-task-name { color: #667eea; }
+    .plan-task-info { display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-bottom: 5px; }
+    .plan-task-name { font-size: 13px; font-weight: 500; color: #333; transition: color 0.2s; }
+    .plan-progress { height: 6px; background: #e8ecef; border-radius: 3px; overflow: hidden; }
+    .plan-progress-bar { height: 100%; border-radius: 3px; transition: width 0.5s; }
+    
+    /* HotCourseware - 200px */
+    .courseware-view { height: 200px; background: #ffffff; padding: 16px; }
+    .courseware-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .courseware-title { font-size: 15px; font-weight: 600; color: #333; }
+    .courseware-more { font-size: 12px; color: #667eea; cursor: pointer; }
+    .course-item { display: flex; align-items: center; gap: 12px; padding: 10px; background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); border-radius: 10px; margin-bottom: 8px; border: 1px solid rgba(0,0,0,0.03); cursor: pointer; transition: all 0.2s; }
+    .course-item:hover { transform: translateX(4px); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .course-icon { width: 44px; height: 44px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: white; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25); }
+    .course-info { flex: 1; }
+    .course-name { font-size: 14px; font-weight: 600; color: #333; }
+    .course-students { font-size: 11px; color: #999; margin-top: 2px; }
+    .course-tag { font-size: 11px; color: #667eea; font-weight: 600; }
+    
+    /* SectionHeader */
+    .section-header { height: 44px; display: flex; align-items: center; padding: 0 16px; background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); border-top: 1px solid #e8ecef; border-bottom: 1px solid #e8ecef; }
+    .section-marker { width: 4px; height: 14px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 2px; margin-right: 8px; }
+    .section-title { font-size: 14px; font-weight: 600; color: #333; }
+    
+    /* TableView */
+    .table-view { background: #ffffff; }
+    .table-header { padding: 14px 16px; border-bottom: 1px solid #e8ecef; display: flex; align-items: center; justify-content: space-between; background: #f8f9fa; }
+    .table-title { font-size: 14px; font-weight: 600; color: #333; display: flex; align-items: center; gap: 6px; }
+    .table-count { font-size: 11px; color: #999; }
+    .table-row { padding: 14px 16px; border-bottom: 1px solid #f0f1f5; display: flex; align-items: center; gap: 12px; transition: all 0.2s; cursor: pointer; }
+    .table-row:hover { background: rgba(102, 126, 234, 0.03); transform: translateX(4px); }
+    .table-icon { width: 44px; height: 44px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25); }
+    .table-content { flex: 1; }
+    .table-title-text { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 3px; }
+    .table-desc { font-size: 12px; color: #999; }
+    .table-arrow { font-size: 14px; color: #ccc; }
+    
+    /* ImageViews */
+    .image-view { height: 60px; background: linear-gradient(135deg, #e8ecef 0%, #f0f1f5 100%); border-top: 1px solid #e8ecef; }
+    
+    /* 间距 */
+    .spacer-25 { height: 25px; background: #f5f6fa; }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <div class="phone-frame">
+      <div class="phone-screen">
+        <!-- 状态栏 -->
+        <div class="status-bar">
+          <span>9:41</span>
+          <div style="display: flex; gap: 5px;">
+            <i class="bi bi-reception-4"></i>
+            <i class="bi bi-wifi"></i>
+            <i class="bi bi-battery-full"></i>
+          </div>
+        </div>
+
+        <!-- 导航栏 -->
+        <div class="nav-bar">
+          网校首页
+        </div>
+
+        <!-- 内容区域 -->
+        <div class="content">
+          
+          <!-- Header 容器 -->
+          <div class="header-container">
+            
+            <!-- Banner -->
+            <div class="banner-view">
+              <div class="banner-content">
+                <div class="banner-title">春季课程火热报名中</div>
+                <div class="banner-subtitle">名师指导 · 提分保障 · 随到随学</div>
+              </div>
+              <div class="banner-indicators">
+                <div class="banner-dot active"></div>
+                <div class="banner-dot"></div>
+                <div class="banner-dot"></div>
+              </div>
+            </div>
+
+            <!-- Menu -->
+            <div class="menu-view">
+              <div class="menu-grid">
+                <div class="menu-item">
+                  <div class="menu-icon">📚</div>
+                  <div class="menu-label">我的课件</div>
+                </div>
+                <div class="menu-item">
+                  <div class="menu-icon">📅</div>
+                  <div class="menu-label">课程表</div>
+                </div>
+                <div class="menu-item">
+                  <div class="menu-icon">👨‍🏫</div>
+                  <div class="menu-label">找老师</div>
+                </div>
+                <div class="menu-item">
+                  <div class="menu-icon">📊</div>
+                  <div class="menu-label">学习报告</div>
+                </div>
+                <div class="menu-item">
+                  <div class="menu-icon">💬</div>
+                  <div class="menu-label">消息</div>
+                </div>
+                <div class="menu-item">
+                  <div class="menu-icon">⚙️</div>
+                  <div class="menu-label">设置</div>
+                </div>
+                <div class="menu-item">
+                  <div class="menu-icon">📁</div>
+                  <div class="menu-label">资料库</div>
+                </div>
+                <div class="menu-item">
+                  <div class="menu-icon">❓</div>
+                  <div class="menu-label">帮助</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- EnterRoom -->
+            <div class="enter-room-view">
+              <div style="position: absolute; top: -60px; right: -60px; width: 240px; height: 240px; background: rgba(255,255,255,0.08); border-radius: 50%;"></div>
+              <div style="position: absolute; bottom: -40px; left: -40px; width: 180px; height: 180px; background: rgba(255,255,255,0.08); border-radius: 50%;"></div>
+              <div class="enter-room-content">
+                <div class="enter-room-icon">🚪</div>
+                <div class="enter-room-title">进入教室</div>
+                <div class="enter-room-btn">立即进入</div>
+                <div class="enter-room-status">
+                  <span style="margin: 0 8px;">🟢 直播中</span>
+                  <span style="margin: 0 8px;">👥 128 人在线</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- ClassSchedule -->
+            <div class="schedule-view">
+              <div class="schedule-header">
+                <div class="schedule-title">
+                  <span>📅</span>
+                  <span>课程表</span>
+                </div>
+                <div class="schedule-more">查看全部 ›</div>
+              </div>
+              <div class="schedule-grid">
+                <div class="schedule-day">一</div>
+                <div class="schedule-day">二</div>
+                <div class="schedule-day">三</div>
+                <div class="schedule-day today">今</div>
+                <div class="schedule-day">五</div>
+                <div class="schedule-day">六</div>
+                <div class="schedule-day">日</div>
+              </div>
+              <div class="schedule-card">
+                <div class="schedule-course">数学提高班</div>
+                <div class="schedule-time">今天 19:00-20:30</div>
+                <div class="schedule-teacher">👨‍🏫 王老师</div>
+              </div>
+            </div>
+            
+          </div>
+
+          <!-- 间距 -->
+          <div class="spacer-25"></div>
+
+          <!-- Trail -->
+          <div class="trail-view">
+            <div class="trail-icon-area">🎬</div>
+            <div class="trail-content">
+              <div class="trail-title">试听课</div>
+              <div class="trail-subtitle">名师公开课，免费体验</div>
+              <div class="trail-badge">✨ 免费试听</div>
+            </div>
+            <div class="trail-play">▶</div>
+          </div>
+
+          <!-- Plan -->
+          <div class="plan-view">
+            <div class="plan-header">
+              <div class="plan-title">
+                <span>📋</span>
+                <span>学习计划</span>
+              </div>
+              <div class="plan-more">查看详情 ›</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div class="plan-task">
+                <div class="plan-task-info">
+                  <span class="plan-task-name">完成第一章学习</span>
+                  <span>100%</span>
+                </div>
+                <div class="plan-progress">
+                  <div class="plan-progress-bar" style="width: 100%; background: linear-gradient(90deg, #38ef7d, #11998e);"></div>
+                </div>
+              </div>
+              <div class="plan-task">
+                <div class="plan-task-info">
+                  <span class="plan-task-name">完成课后练习</span>
+                  <span>60%</span>
+                </div>
+                <div class="plan-progress">
+                  <div class="plan-progress-bar" style="width: 60%; background: linear-gradient(90deg, #667eea, #764ba2);"></div>
+                </div>
+              </div>
+              <div class="plan-task">
+                <div class="plan-task-info">
+                  <span class="plan-task-name">参加单元测试</span>
+                  <span>0%</span>
+                </div>
+                <div class="plan-progress">
+                  <div class="plan-progress-bar" style="width: 0%; background: linear-gradient(90deg, #f093fb, #f5576c);"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- HotCourseware -->
+          <div class="courseware-view">
+            <div class="courseware-header">
+              <div class="courseware-title">📚 热门课件</div>
+              <div class="courseware-more">更多 ›</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div class="course-item">
+                <div class="course-icon">📐</div>
+                <div class="course-info">
+                  <div class="course-name">数学提高班</div>
+                  <div class="course-students">👥 1280 人在学</div>
+                </div>
+                <div class="course-tag">🔥 热门</div>
+              </div>
+              <div class="course-item">
+                <div class="course-icon">🔤</div>
+                <div class="course-info">
+                  <div class="course-name">英语强化班</div>
+                  <div class="course-students">👥 956 人在学</div>
+                </div>
+                <div class="course-tag">查看详情 ›</div>
+              </div>
+              <div class="course-item">
+                <div class="course-icon">⚡</div>
+                <div class="course-info">
+                  <div class="course-name">物理竞赛班</div>
+                  <div class="course-students">👥 742 人在学</div>
+                </div>
+                <div class="course-tag">查看详情 ›</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SectionHeader -->
+          <div class="section-header">
+            <div class="section-marker"></div>
+            <div class="section-title">推荐课程</div>
+          </div>
+
+          <!-- TableView -->
+          <div class="table-view">
+            <div class="table-header">
+              <div class="table-title">
+                <span>📋</span>
+                <span>课程列表</span>
+              </div>
+              <div class="table-count">共 5 项</div>
+            </div>
+            <div class="table-row">
+              <div class="table-icon">📚</div>
+              <div class="table-content">
+                <div class="table-title-text">高一数学同步班</div>
+                <div class="table-desc">同步学校进度 · 夯实基础</div>
+              </div>
+              <div class="table-arrow">›</div>
+            </div>
+            <div class="table-row">
+              <div class="table-icon">📝</div>
+              <div class="table-content">
+                <div class="table-title-text">初二英语强化班</div>
+                <div class="table-desc">语法突破 · 阅读提升</div>
+              </div>
+              <div class="table-arrow">›</div>
+            </div>
+            <div class="table-row">
+              <div class="table-icon">📊</div>
+              <div class="table-content">
+                <div class="table-title-text">初三物理冲刺班</div>
+                <div class="table-desc">考点精讲 · 真题演练</div>
+              </div>
+              <div class="table-arrow">›</div>
+            </div>
+          </div>
+
+          <!-- ImageViews -->
+          <div class="image-view"></div>
+          <div class="image-view"></div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  </script>
+</body>
+</html>
